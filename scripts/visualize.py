@@ -28,7 +28,7 @@ from lib.eval_helper import get_eval
 from lib.config import CONF
 
 # data
-SCANNET_ROOT = "/mnt/canis/Datasets/ScanNet/public/v2/scans/" # TODO point this to your scannet data
+SCANNET_ROOT = "/mnt/ScanNet/public/v2/scans" # TODO point this to your scannet data
 SCANNET_MESH = os.path.join(SCANNET_ROOT, "{}/{}_vh_clean_2.ply") # scene_id, scene_id 
 SCANNET_META = os.path.join(SCANNET_ROOT, "{}/{}.txt") # scene_id, scene_id 
 SCANREFER_TRAIN = json.load(open(os.path.join(CONF.PATH.DATA, "ScanRefer_filtered_train.json")))
