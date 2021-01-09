@@ -16,11 +16,14 @@ from copy import deepcopy
 sys.path.append(os.path.join(os.getcwd())) # HACK add the root folder
 from data.scannet.model_util_scannet import ScannetDatasetConfig
 from lib.dataset import ScannetReferenceDataset
+from models.pointgroup import PointGroup
+from models.pointgroup import model_fn_decorator
+from lib.dataset_pointgroup_ref import ScannetReferencePointGroupDataset
 from lib.solver import Solver
 from lib.config import CONF
 #from models.refnet import RefNet
-from models.pointgroup import PointGroup
 from lib.pointgroup_ops.functions import pointgroup_ops
+from util.config import cfg
 
 SCANREFER_TRAIN = json.load(open(os.path.join(CONF.PATH.DATA, "ScanRefer_filtered_train.json")))
 SCANREFER_VAL = json.load(open(os.path.join(CONF.PATH.DATA, "ScanRefer_filtered_val.json")))
@@ -28,8 +31,8 @@ SCANREFER_VAL = json.load(open(os.path.join(CONF.PATH.DATA, "ScanRefer_filtered_
 # constants
 DC = ScannetDatasetConfig()
 
-def get_dataloader(args, scanrefer, all_scene_list, split, config, augment):
-    dataset = ScannetReferenceDataset(
+def get_dataloader(args, scanrefer, all_scene_list, split, config, augment, dataset_class=ScannetReferenceDataset):
+    dataset = dataset_class(
         scanrefer=scanrefer[split], 
         scanrefer_all_scene=all_scene_list, 
         split=split, 
@@ -100,26 +103,27 @@ def func(args):
     }
 
     # dataloader
-    train_dataset, train_dataloader = get_dataloader(args, scanrefer, all_scene_list, "train", DC, True)
-    val_dataset, val_dataloader = get_dataloader(args, scanrefer, all_scene_list, "val", DC, False)
+    train_dataset, train_dataloader = get_dataloader(args, scanrefer, all_scene_list, "train", DC, True, ScannetReferencePointGroupDataset)
+    val_dataset, val_dataloader = get_dataloader(args, scanrefer, all_scene_list, "val", DC, False, ScannetReferencePointGroupDataset)
     dataloader = {
         "train": train_dataloader,
         "val": val_dataloader
     }
-    sample_pc = torch.LongTensor(train_dataset[0]['point_clouds'])
-    sample_pc[:, :-1] = sample_pc[:, 1:]
-    sample_pc[:, 0] = 0
-    print(sample_pc.min())
-    sample_pc -= sample_pc.min()
-    print(sample_pc.shape)
-    voxel_locs, p2v_map, v2p_map = pointgroup_ops.voxelization_idx(sample_pc,1)
-    print(voxel_locs.shape)
+    model = PointGroup(cfg)
+    use_cuda = torch.cuda.is_available()
+    print('cuda available: {}'.format(use_cuda))
+    assert use_cuda
+    model = model.cuda()
+    ##### model_fn (criterion)
+    model_fn = model_fn_decorator()
+    sample = train_dataset[0]
+    loss, _, visual_dict, meter_dict = model_fn(sample, model, 0)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--tag", type=str, help="tag for the training, e.g. cuda_wl", default="")
-    parser.add_argument("--gpu", type=str, help="gpu", default="0")
-    parser.add_argument("--batch_size", type=int, help="batch size", default=14)
+    parser.add_argument("--gpu", type=str, help="gpu", default="1")
+    parser.add_argument("--batch_size", type=int, help="batch size", default=1)
     parser.add_argument("--epoch", type=int, help="number of epochs", default=50)
     parser.add_argument("--verbose", type=int, help="iterations of showing verbose", default=10)
     parser.add_argument("--val_step", type=int, help="iterations of validating", default=5000)

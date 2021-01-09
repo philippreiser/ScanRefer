@@ -17,19 +17,31 @@ from util.log import logger
 import util.utils as utils
 
 from data.scannetv2_inst import Dataset as PointGroupDataset
+from lib.dataset_pointgroup_ref import ScannetReferencePointGroupDataset
 
 if __name__ == "__main__":
-    dataset = PointGroupDataset()
-    dataset.trainLoader()
+    dataset1 = PointGroupDataset()
+    dataset1.trainLoader()
     #dataset.valLoader()
-    train_loader = dataset.train_data_loader
-    sample = next(iter(train_loader))
-    print(sample.keys())
-    print(sample['locs'].min())
-    print(sample['feats'].shape)
-    print(sample['voxel_locs'].shape)
-    print(sample['labels'].shape)
-    print(sample['instance_labels'].shape)
+    train_loader1 = dataset1.train_data_loader
+    sample1 = next(iter(train_loader1))
+    print(sample1.keys())
+    print(sample1['locs'].min())
+    print(sample1['feats'].shape)
+    print(sample1['voxel_locs'].shape)
+    print(sample1['labels'].type())
+    print(sample1['instance_labels'].shape)
+    from models.pointgroup import PointGroup as Network
+    from models.pointgroup import model_fn_decorator
+    model = Network(cfg)
+
+    use_cuda = torch.cuda.is_available()
+    logger.info('cuda available: {}'.format(use_cuda))
+    assert use_cuda
+    model = model.cuda()
+    model_fn = model_fn_decorator()
+    loss, _, visual_dict, meter_dict = model_fn(sample1, model, 0)
+
 def init():
     # log the config
     logger.info(cfg)
