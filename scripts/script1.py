@@ -16,11 +16,18 @@ from copy import deepcopy
 sys.path.append(os.path.join(os.getcwd())) # HACK add the root folder
 from data.scannet.model_util_scannet import ScannetDatasetConfig
 from lib.dataset import ScannetReferenceDataset
+from models.pointgroup import PointGroup
+from models.pointgroup import model_fn_decorator
+from lib.dataset_pointgroup_ref import ScannetReferencePointGroupDataset
 from lib.solver import Solver
 from lib.config import CONF
 #from models.refnet import RefNet
-from models.pointgroup import PointGroup
 from lib.pointgroup_ops.functions import pointgroup_ops
+from util.config import cfg
+from util.log import logger
+import util.utils as utils
+
+from scripts_2_pointgroup import init, train_epoch, eval_epoch
 
 SCANREFER_TRAIN = json.load(open(os.path.join(CONF.PATH.DATA, "ScanRefer_filtered_train.json")))
 SCANREFER_VAL = json.load(open(os.path.join(CONF.PATH.DATA, "ScanRefer_filtered_val.json")))
@@ -28,8 +35,8 @@ SCANREFER_VAL = json.load(open(os.path.join(CONF.PATH.DATA, "ScanRefer_filtered_
 # constants
 DC = ScannetDatasetConfig()
 
-def get_dataloader(args, scanrefer, all_scene_list, split, config, augment):
-    dataset = ScannetReferenceDataset(
+def get_dataloader(args, scanrefer, all_scene_list, split, config, augment, dataset_class=ScannetReferenceDataset):
+    dataset = dataset_class(
         scanrefer=scanrefer[split], 
         scanrefer_all_scene=all_scene_list, 
         split=split, 
@@ -100,26 +107,78 @@ def func(args):
     }
 
     # dataloader
-    train_dataset, train_dataloader = get_dataloader(args, scanrefer, all_scene_list, "train", DC, True)
-    val_dataset, val_dataloader = get_dataloader(args, scanrefer, all_scene_list, "val", DC, False)
+    train_dataset, train_dataloader = get_dataloader(args, scanrefer, all_scene_list, "train", DC, True, ScannetReferencePointGroupDataset)
+    val_dataset, val_dataloader = get_dataloader(args, scanrefer, all_scene_list, "val", DC, False, ScannetReferencePointGroupDataset)
     dataloader = {
         "train": train_dataloader,
         "val": val_dataloader
     }
-    sample_pc = torch.LongTensor(train_dataset[0]['point_clouds'])
-    sample_pc[:, :-1] = sample_pc[:, 1:]
-    sample_pc[:, 0] = 0
-    print(sample_pc.min())
-    sample_pc -= sample_pc.min()
-    print(sample_pc.shape)
-    voxel_locs, p2v_map, v2p_map = pointgroup_ops.voxelization_idx(sample_pc,1)
-    print(voxel_locs.shape)
+    """model = PointGroup(cfg)
+    use_cuda = torch.cuda.is_available()
+    print('cuda available: {}'.format(use_cuda))
+    assert use_cuda
+    model = model.cuda()
+    ##### model_fn (criterion)
+    model_fn = model_fn_decorator()
+    sample = train_dataset[0]
+    print(sample['cluster_ref'])
+    loss, _, visual_dict, meter_dict = model_fn(sample, model, 0)"""
+    ##### init
+    init()
+
+    ##### get model version and data version
+    exp_name = cfg.config.split('/')[-1][:-5]
+    model_name = exp_name.split('_')[0]
+    data_name = exp_name.split('_')[-1]
+
+    ##### model
+    logger.info('=> creating model ...')
+
+    if model_name == 'pointgroup':
+        from models.pointgroup import PointGroup as Network
+        from models.pointgroup import model_fn_decorator
+    else:
+        print("Error: no model - " + model_name)
+        exit(0)
+
+    model = Network(cfg)
+
+    use_cuda = torch.cuda.is_available()
+    logger.info('cuda available: {}'.format(use_cuda))
+    assert use_cuda
+    model = model.cuda()
+
+    # logger.info(model)
+    logger.info('#classifier parameters: {}'.format(sum([x.nelement() for x in model.parameters()])))
+
+    ##### optimizer
+    if cfg.optim == 'Adam':
+        optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=cfg.lr)
+    elif cfg.optim == 'SGD':
+        optimizer = optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr=cfg.lr, momentum=cfg.momentum, weight_decay=cfg.weight_decay)
+
+    ##### model_fn (criterion)
+    model_fn = model_fn_decorator()
+
+    ##### dataset
+    
+    
+
+    ##### resume
+    start_epoch = utils.checkpoint_restore(model, cfg.exp_path, cfg.config.split('/')[-1][:-5], use_cuda)      # resume from the latest epoch, or specify the epoch to restore
+
+    ##### train and val
+    for epoch in range(start_epoch, cfg.epochs + 1):
+        train_epoch(train_dataloader, model, model_fn, optimizer, epoch)
+
+        if utils.is_multiple(epoch, cfg.save_freq) or utils.is_power2(epoch):
+            eval_epoch(val_dataloader, model, model_fn, epoch)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--tag", type=str, help="tag for the training, e.g. cuda_wl", default="")
-    parser.add_argument("--gpu", type=str, help="gpu", default="0")
-    parser.add_argument("--batch_size", type=int, help="batch size", default=14)
+    parser.add_argument("--gpu", type=str, help="gpu", default="1")
+    parser.add_argument("--batch_size", type=int, help="batch size", default=1)
     parser.add_argument("--epoch", type=int, help="number of epochs", default=50)
     parser.add_argument("--verbose", type=int, help="iterations of showing verbose", default=10)
     parser.add_argument("--val_step", type=int, help="iterations of validating", default=5000)

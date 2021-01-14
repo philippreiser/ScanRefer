@@ -51,7 +51,7 @@ def export(mesh_file, agg_file, seg_file, meta_file, label_map_file, output_file
     instance label as 1-#instance,
     box as (cx,cy,cz,dx,dy,dz,semantic_label)
     """
-    label_map = scannet_utils.read_label_mapping(label_map_file, label_from='raw_category', label_to='nyu40id')    
+    label_map = scannet_utils.read_label_mapping(label_map_file, label_from='raw_category', label_to='nyu40id')  
     # mesh_vertices = scannet_utils.read_mesh_vertices_rgb(mesh_file)
     mesh_vertices = scannet_utils.read_mesh_vertices_rgb_normal(mesh_file)
 

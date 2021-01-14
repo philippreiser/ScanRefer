@@ -6,6 +6,7 @@ data/scannet/scannet_data
 data/scannet/scans
 data/scannetv2_enet.pth
 data/download-scannet.py
+dataset/
 
 # cache
 data/scannet/__pycache__
@@ -18,6 +19,7 @@ utils/__pycache__
 data/__pycache__/
 util/__pycache__
 .spyproject/
+scripts/__pycache__
 
 # pointnet2
 lib/pointnet2/build/
@@ -32,6 +34,7 @@ outputs/
 
 # delete
 docs/.DS_Store
+demo/.DS_Store
 
 # misc
 upload/

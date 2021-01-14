@@ -17,19 +17,31 @@ from util.log import logger
 import util.utils as utils
 
 from data.scannetv2_inst import Dataset as PointGroupDataset
-
+from lib.dataset_pointgroup_ref import ScannetReferencePointGroupDataset
+"""
 if __name__ == "__main__":
-    dataset = PointGroupDataset()
-    dataset.trainLoader()
+    dataset1 = PointGroupDataset()
+    dataset1.trainLoader()
     #dataset.valLoader()
-    train_loader = dataset.train_data_loader
-    sample = next(iter(train_loader))
-    print(sample.keys())
-    print(sample['locs'].min())
-    print(sample['feats'].shape)
-    print(sample['voxel_locs'].shape)
-    print(sample['labels'].shape)
-    print(sample['instance_labels'].shape)
+    train_loader1 = dataset1.train_data_loader
+    sample1 = next(iter(train_loader1))
+    print(sample1.keys())
+    print(sample1['locs'].min())
+    print(sample1['feats'].shape)
+    print(sample1['voxel_locs'].shape)
+    print(sample1['labels'].type())
+    print(sample1['instance_labels'].shape)
+    from models.pointgroup import PointGroup as Network
+    from models.pointgroup import model_fn_decorator
+    model = Network(cfg)
+
+    use_cuda = torch.cuda.is_available()
+    logger.info('cuda available: {}'.format(use_cuda))
+    assert use_cuda
+    model = model.cuda()
+    model_fn = model_fn_decorator()
+    loss, _, visual_dict, meter_dict = model_fn(sample1, model, 0)
+"""
 def init():
     # log the config
     logger.info(cfg)
@@ -60,6 +72,9 @@ def train_epoch(train_loader, model, model_fn, optimizer, epoch):
         utils.step_learning_rate(optimizer, cfg.lr, epoch - 1, cfg.step_epoch, cfg.multiplier)
 
         ##### prepare input and forward
+        print(batch['feats'].shape)
+        print(batch['labels'].shape)
+        print()
         loss, _, visual_dict, meter_dict = model_fn(batch, model, epoch)
 
         ##### meter_dict
@@ -130,7 +145,6 @@ def eval_epoch(val_loader, model, model_fn, epoch):
             if k in visual_dict.keys():
                 writer.add_scalar(k + '_eval', am_dict[k].avg, epoch)
 
-"""
 if __name__ == '__main__':
     ##### init
     init()
@@ -144,8 +158,8 @@ if __name__ == '__main__':
     logger.info('=> creating model ...')
 
     if model_name == 'pointgroup':
-        from model.pointgroup.pointgroup import PointGroup as Network
-        from model.pointgroup.pointgroup import model_fn_decorator
+        from models.pointgroup import PointGroup as Network
+        from models.pointgroup import model_fn_decorator
     else:
         print("Error: no model - " + model_name)
         exit(0)
@@ -184,9 +198,9 @@ if __name__ == '__main__':
     start_epoch = utils.checkpoint_restore(model, cfg.exp_path, cfg.config.split('/')[-1][:-5], use_cuda)      # resume from the latest epoch, or specify the epoch to restore
 
     ##### train and val
+    print("batch size: ", cfg.batch_size)
     for epoch in range(start_epoch, cfg.epochs + 1):
         train_epoch(dataset.train_data_loader, model, model_fn, optimizer, epoch)
 
         if utils.is_multiple(epoch, cfg.save_freq) or utils.is_power2(epoch):
             eval_epoch(dataset.val_data_loader, model, model_fn, epoch)
-"""
