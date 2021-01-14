@@ -24,10 +24,13 @@ from lib.config import CONF
 #from models.refnet import RefNet
 from lib.pointgroup_ops.functions import pointgroup_ops
 from util.config import cfg
+<<<<<<< HEAD
 from util.log import logger
 import util.utils as utils
 
 from scripts_2_pointgroup import init, train_epoch, eval_epoch
+=======
+>>>>>>> d154cafc2725a241638b13d8819e74b425503c9d
 
 SCANREFER_TRAIN = json.load(open(os.path.join(CONF.PATH.DATA, "ScanRefer_filtered_train.json")))
 SCANREFER_VAL = json.load(open(os.path.join(CONF.PATH.DATA, "ScanRefer_filtered_val.json")))
@@ -113,7 +116,11 @@ def func(args):
         "train": train_dataloader,
         "val": val_dataloader
     }
+<<<<<<< HEAD
     """model = PointGroup(cfg)
+=======
+    model = PointGroup(cfg)
+>>>>>>> d154cafc2725a241638b13d8819e74b425503c9d
     use_cuda = torch.cuda.is_available()
     print('cuda available: {}'.format(use_cuda))
     assert use_cuda
@@ -121,6 +128,7 @@ def func(args):
     ##### model_fn (criterion)
     model_fn = model_fn_decorator()
     sample = train_dataset[0]
+<<<<<<< HEAD
     print(sample['cluster_ref'])
     loss, _, visual_dict, meter_dict = model_fn(sample, model, 0)"""
     ##### init
@@ -173,6 +181,9 @@ def func(args):
 
         if utils.is_multiple(epoch, cfg.save_freq) or utils.is_power2(epoch):
             eval_epoch(val_dataloader, model, model_fn, epoch)
+=======
+    loss, _, visual_dict, meter_dict = model_fn(sample, model, 0)
+>>>>>>> d154cafc2725a241638b13d8819e74b425503c9d
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

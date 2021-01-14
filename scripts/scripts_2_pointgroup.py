@@ -18,7 +18,11 @@ import util.utils as utils
 
 from data.scannetv2_inst import Dataset as PointGroupDataset
 from lib.dataset_pointgroup_ref import ScannetReferencePointGroupDataset
+<<<<<<< HEAD
 """
+=======
+
+>>>>>>> d154cafc2725a241638b13d8819e74b425503c9d
 if __name__ == "__main__":
     dataset1 = PointGroupDataset()
     dataset1.trainLoader()
@@ -41,7 +45,11 @@ if __name__ == "__main__":
     model = model.cuda()
     model_fn = model_fn_decorator()
     loss, _, visual_dict, meter_dict = model_fn(sample1, model, 0)
+<<<<<<< HEAD
 """
+=======
+
+>>>>>>> d154cafc2725a241638b13d8819e74b425503c9d
 def init():
     # log the config
     logger.info(cfg)
@@ -72,9 +80,12 @@ def train_epoch(train_loader, model, model_fn, optimizer, epoch):
         utils.step_learning_rate(optimizer, cfg.lr, epoch - 1, cfg.step_epoch, cfg.multiplier)
 
         ##### prepare input and forward
+<<<<<<< HEAD
         print(batch['feats'].shape)
         print(batch['labels'].shape)
         print()
+=======
+>>>>>>> d154cafc2725a241638b13d8819e74b425503c9d
         loss, _, visual_dict, meter_dict = model_fn(batch, model, epoch)
 
         ##### meter_dict
@@ -145,6 +156,10 @@ def eval_epoch(val_loader, model, model_fn, epoch):
             if k in visual_dict.keys():
                 writer.add_scalar(k + '_eval', am_dict[k].avg, epoch)
 
+<<<<<<< HEAD
+=======
+"""
+>>>>>>> d154cafc2725a241638b13d8819e74b425503c9d
 if __name__ == '__main__':
     ##### init
     init()
@@ -158,8 +173,13 @@ if __name__ == '__main__':
     logger.info('=> creating model ...')
 
     if model_name == 'pointgroup':
+<<<<<<< HEAD
         from models.pointgroup import PointGroup as Network
         from models.pointgroup import model_fn_decorator
+=======
+        from model.pointgroup.pointgroup import PointGroup as Network
+        from model.pointgroup.pointgroup import model_fn_decorator
+>>>>>>> d154cafc2725a241638b13d8819e74b425503c9d
     else:
         print("Error: no model - " + model_name)
         exit(0)
@@ -198,9 +218,17 @@ if __name__ == '__main__':
     start_epoch = utils.checkpoint_restore(model, cfg.exp_path, cfg.config.split('/')[-1][:-5], use_cuda)      # resume from the latest epoch, or specify the epoch to restore
 
     ##### train and val
+<<<<<<< HEAD
     print("batch size: ", cfg.batch_size)
+=======
+>>>>>>> d154cafc2725a241638b13d8819e74b425503c9d
     for epoch in range(start_epoch, cfg.epochs + 1):
         train_epoch(dataset.train_data_loader, model, model_fn, optimizer, epoch)
 
         if utils.is_multiple(epoch, cfg.save_freq) or utils.is_power2(epoch):
+<<<<<<< HEAD
             eval_epoch(dataset.val_data_loader, model, model_fn, epoch)
+=======
+            eval_epoch(dataset.val_data_loader, model, model_fn, epoch)
+"""
+>>>>>>> d154cafc2725a241638b13d8819e74b425503c9d
