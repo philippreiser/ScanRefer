@@ -8,11 +8,15 @@ import numpy as np
 import multiprocessing as mp
 from torch.utils.data import Dataset
 import glob, math, numpy as np
+import scipy.ndimage
+import scipy.interpolate
+import torch
 
 sys.path.append(os.path.join(os.getcwd(), "lib")) # HACK add the lib folder
 from lib.config import CONF
 from utils.pc_utils import random_sampling, rotx, roty, rotz
 from data.scannet.model_util_scannet import rotate_aligned_boxes, ScannetDatasetConfig, rotate_aligned_boxes_along_axis
+from lib.pointgroup_ops.functions import pointgroup_ops
 
 # data setting
 DC = ScannetDatasetConfig()
@@ -34,20 +38,32 @@ class ScannetReferencePointGroupDataset(Dataset):
         use_color=False, 
         use_normal=False, 
         use_multiview=False, 
-        augment=False):
+        augment=False,
+        scale=50,
+        full_scale=[128, 512],
+        max_npoint=250000,
+        batch_size=1,
+        mode=4):
 
         self.scanrefer = scanrefer
         self.scanrefer_all_scene = scanrefer_all_scene # all scene_ids in scanrefer
         self.split = split
         self.num_points = num_points
         self.use_color = use_color        
-        self.use_height = use_height
-        self.use_normal = use_normal        
-        self.use_multiview = use_multiview
-        self.augment = augment
+        self.use_height = use_height # TODO
+        self.use_normal = use_normal # TODO
+        self.use_multiview = use_multiview # TODO
+        self.augment = augment # TODO
+        self.scale = scale
+        self.full_scale = full_scale
+        self.max_npoint = max_npoint
+        self.batch_size = batch_size
+        self.mode = mode
 
         # load data
         self._load_data()
+        # remap data
+        self._prepare_data()
         self.multiview_data = {}
 
     def __len__(self):
@@ -92,12 +108,14 @@ class ScannetReferencePointGroupDataset(Dataset):
             multiview = self.multiview_data[pid][scene_id]
             point_cloud = np.concatenate([point_cloud, multiview],1)
 
-        if self.use_height:
-            floor_height = np.percentile(point_cloud[:,2],0.99)
-            height = point_cloud[:,2] - floor_height
-            point_cloud = np.concatenate([point_cloud, np.expand_dims(height, 1)],1) 
+        # if self.use_height:
+        #     floor_height = np.percentile(point_cloud[:,2],0.99)
+        #     height = point_cloud[:,2] - floor_height
+        #     point_cloud = np.concatenate([point_cloud, np.expand_dims(height, 1)],1) 
         
         xyz_origin = point_cloud
+        label, instance_label = semantic_labels, instance_labels
+        rgb = pcl_color
         ### jitter / flip x / rotation
         xyz_middle = self.dataAugment(xyz_origin, True, True, True)
 
@@ -116,7 +134,32 @@ class ScannetReferencePointGroupDataset(Dataset):
 
         xyz_middle = xyz_middle[valid_idxs]
         xyz = xyz[valid_idxs]
-        locs = torch.cat([torch.LongTensor(xyz.shape[0], 1).fill_(i), torch.from_numpy(xyz).long()], 1)
+        rgb = rgb[valid_idxs]
+        label = label[valid_idxs]
+        instance_label = self.getCroppedInstLabel(instance_label, valid_idxs)
+        ### get instance information
+        inst_num, inst_infos = self.getInstanceInfo(xyz_middle, instance_label.astype(np.int32))
+        inst_info = inst_infos["instance_info"]  # (n, 9), (cx, cy, cz, minx, miny, minz, maxx, maxy, maxz)
+        instance_infos = torch.from_numpy(inst_info).to(torch.float32) # float (N, 9) (meanxyz, minxyz, maxxyz)
+        inst_pointnum = inst_infos["instance_pointnum"] # (nInst), list
+        instance_pointnum = torch.tensor(inst_pointnum, dtype=torch.int)  # int (total_nInst)
+        batch_offsets = [0 + xyz.shape[0]]
+        batch_offsets = torch.tensor(batch_offsets, dtype=torch.int)  # int (B+1)
+
+        total_inst_num = inst_num
+
+        locs = torch.cat([torch.LongTensor(xyz.shape[0], 1).fill_(0), torch.from_numpy(xyz).long()], 1)
+        locs_float = torch.from_numpy(xyz_middle).to(torch.float32)
+        feats = torch.from_numpy(rgb) + torch.randn(3) * 0.1
+        labels = torch.from_numpy(label.astype(np.int64)).long()   # long (N)
+        instance_labels = torch.from_numpy(instance_labels.astype(np.int64)).long()   # long (N)
+        spatial_shape = np.clip((locs.max(0)[0][1:] + 1).numpy(), self.full_scale[0], None)     # long (3)
+        ### voxelize
+        voxel_locs, p2v_map, v2p_map = pointgroup_ops.voxelization_idx(locs, self.batch_size, self.mode)
+        return {'locs': locs, 'locs_float': locs_float, 'voxel_locs': voxel_locs, 'p2v_map': p2v_map, 'v2p_map': v2p_map,
+                'feats': feats, 'labels': labels, 'instance_labels': instance_labels, 'spatial_shape': spatial_shape,
+                'instance_info': instance_infos, 'instance_pointnum': instance_pointnum, 'offsets': batch_offsets
+                }
 
 
     #Elastic distortion
@@ -138,7 +181,36 @@ class ScannetReferencePointGroupDataset(Dataset):
         def g(x_):
             return np.hstack([i(x_)[:,None] for i in interp])
         return x + g(x) * mag
-    
+
+    def getInstanceInfo(self, xyz, instance_label):
+        '''
+        :param xyz: (n, 3)
+        :param instance_label: (n), int, (0~nInst-1, -100)
+        :return: instance_num, dict
+        '''
+        instance_info = np.ones((xyz.shape[0], 9), dtype=np.float32) * -100.0   # (n, 9), float, (cx, cy, cz, minx, miny, minz, maxx, maxy, maxz)
+        instance_pointnum = []   # (nInst), int
+        instance_num = int(instance_label.max()) + 1
+        for i_ in range(instance_num):
+            inst_idx_i = np.where(instance_label == i_)
+
+            ### instance_info
+            xyz_i = xyz[inst_idx_i]
+            min_xyz_i = xyz_i.min(0)
+            max_xyz_i = xyz_i.max(0)
+            mean_xyz_i = xyz_i.mean(0)
+            instance_info_i = instance_info[inst_idx_i]
+            instance_info_i[:, 0:3] = mean_xyz_i
+            instance_info_i[:, 3:6] = min_xyz_i
+            instance_info_i[:, 6:9] = max_xyz_i
+            instance_info[inst_idx_i] = instance_info_i
+
+            ### instance_pointnum
+            instance_pointnum.append(inst_idx_i[0].size)
+
+        return instance_num, {"instance_info": instance_info, "instance_pointnum": instance_pointnum}
+
+
     def dataAugment(self, xyz, jitter=False, flip=False, rot=False):
         m = np.eye(3)
         if jitter:
@@ -148,8 +220,6 @@ class ScannetReferencePointGroupDataset(Dataset):
         if rot:
             theta = np.random.rand() * 2 * math.pi
             m = np.matmul(m, [[math.cos(theta), math.sin(theta), 0], [-math.sin(theta), math.cos(theta), 0], [0, 0, 1]])  # rotation
-        print(xyz.shape)
-        print(m.shape)
         return np.matmul(xyz, m)
 
     def crop(self, xyz):
@@ -169,6 +239,16 @@ class ScannetReferencePointGroupDataset(Dataset):
             full_scale[:2] -= 32
 
         return xyz_offset, valid_idxs
+
+
+    def getCroppedInstLabel(self, instance_label, valid_idxs):
+        instance_label = instance_label[valid_idxs]
+        j = 0
+        while (j < instance_label.max()):
+            if (len(np.where(instance_label == j)[0]) == 0):
+                instance_label[instance_label == instance_label.max()] = j
+            j += 1
+        return instance_label
 
 
     def _get_raw2label(self):
@@ -314,3 +394,23 @@ class ScannetReferencePointGroupDataset(Dataset):
         self.raw2nyuid = raw2nyuid
         self.raw2label = self._get_raw2label()
         self.unique_multiple_lookup = self._get_unique_multiple_lookup()
+
+
+    def _prepare_data(self):
+        """ 
+        Prepare data for PointGroup module
+        """
+        # Map relevant classes to {0,1,...,19}, and ignored classes to -100
+        remapper = np.ones(150) * (-100)
+        for i, x in enumerate([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 16, 24, 28, 33, 34, 36, 39]):
+            remapper[x] = i
+        for scene_id in self.scene_list:
+            mesh_vertices = self.scene_data[scene_id]["mesh_vertices"]
+            coords = np.ascontiguousarray(mesh_vertices[:, :3] - mesh_vertices[:, :3].mean(0))
+            colors = np.ascontiguousarray(mesh_vertices[:, 3:6]) / 127.5 - 1
+            self.scene_data[scene_id]["mesh_vertices"][:, :3] = coords
+            self.scene_data[scene_id]["mesh_vertices"][:, 3:6] = colors
+            # instance_labels = self.scene_data[scene_id]["instance_labels"]
+            semantic_labels = self.scene_data[scene_id]["semantic_labels"]
+            self.scene_data[scene_id]["semantic_labels"] = remapper[np.array(semantic_labels)]
+            # instance_bboxes = self.scene_data[scene_id]["instance_bboxes"]

@@ -96,6 +96,7 @@ def read_mesh_vertices_rgb(filename):
 
 def read_mesh_vertices_rgb_normal(filename):
     """ read XYZ RGB normals point cloud from filename PLY file """
+    print(filename)
     assert(os.path.isfile(filename))
     with open(filename, 'rb') as f:
         plydata = PlyData.read(f)
