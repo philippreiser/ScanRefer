@@ -136,7 +136,8 @@ class RefNet(nn.Module):
         # loss, visual_dict, meter_dict not necessary here
         # TODO: forwarding to downstream app?
         model_fn = model_fn_decorator()
-        loss, preds, _, _ = model_fn(data_dict, self.pointgroup(), data_dict['epoch'])
+        # loss, preds, _, _ = model_fn(data_dict, self.pointgroup, data_dict['epoch'])
+        loss, preds, _, _ = model_fn(data_dict, self.pointgroup, 129) # TODO: data_dict['epoch']
 
         # preds['score_feats'] has to be of dim.: [batch_size, num_proposal, 128]
         assert(preds['score_feats'].shape[-1] == 128)
