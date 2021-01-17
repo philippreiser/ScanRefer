@@ -15,6 +15,9 @@ from lib.ap_helper import parse_predictions
 from lib.loss import SoftmaxRankingLoss
 from utils.box_util import get_3d_box, get_3d_box_batch, box3d_iou, box3d_iou_batch
 
+# for cfg.prepare_epochs
+from util.config import cfg
+
 FAR_THRESHOLD = 0.6
 NEAR_THRESHOLD = 0.3
 GT_VOTE_FACTOR = 3 # number of GT votes per point
@@ -373,9 +376,11 @@ def get_loss(data_dict, config, detection=True, reference=True, use_lang_classif
     # only the last two losses are needed
     # add the loss calculated during the RefNet.forward by calling pointgroup.model_fn
     # TODO: weight set to 0.8 for now (so that weights sum up to 1)
-    loss = 0.1*data_dict["ref_loss"] + 0.1*data_dict["lang_loss"] + 0.8 * data_dict['pg_loss']
-
-    loss *= 10 # amplify
+    if data_dict['epoch'] > cfg.prepare_epochs: 
+        loss = 0.1*data_dict["ref_loss"] + 0.1*data_dict["lang_loss"] + 0.8 * data_dict['pg_loss']
+         loss *= 10 # amplify
+    else: 
+        loss = data_dict['pg_loss']
 
     data_dict['loss'] = loss
 
