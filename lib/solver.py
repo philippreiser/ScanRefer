@@ -338,6 +338,7 @@ class Solver():
             with torch.autograd.set_detect_anomaly(True):
                 # forward
                 start = time.time()
+                data_dict["epoch"] = epoch_id
                 data_dict = self._forward(data_dict)
                 self._compute_loss(data_dict)
                 self.log[phase]["forward"].append(time.time() - start)

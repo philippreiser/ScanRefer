@@ -17,6 +17,9 @@ from util.config import cfg
 from models.lang_module import LangModule
 from models.match_module import MatchModule
 
+# for cfg.prepare_epochs
+from util.config import cfg
+
 class RefNet(nn.Module):
     def __init__(self, num_class, num_heading_bin, num_size_cluster, mean_size_arr, 
     input_feature_dim=0, num_proposal=128, vote_factor=1, sampling="vote_fps",
@@ -136,13 +139,18 @@ class RefNet(nn.Module):
         # loss, visual_dict, meter_dict not necessary here
         # TODO: forwarding to downstream app?
         model_fn = model_fn_decorator()
-        # loss, preds, _, _ = model_fn(data_dict, self.pointgroup, data_dict['epoch'])
-        loss, preds, _, _ = model_fn(data_dict, self.pointgroup, 129) # TODO: data_dict['epoch']
+        loss, preds, _, _ = model_fn(data_dict, self.pointgroup, data_dict['epoch']) # data_dict['epoch'] = 129
 
-        # preds['score_feats'] has to be of dim.: [batch_size, num_proposal, 128]
-        assert(preds['score_feats'].shape[-1] == 128)
+        if (data_dict['epoch'] > cfg.prepare_epochs): 
+            # preds['score_feats'] has to be of dim.: [batch_size, num_proposal, 128]
+            assert(preds['score_feats'].shape[-1] == 128)
+            data_dict['aggregated_vote_features'] = preds['score_feats']
+        else: 
+            # scalar as default value - can be broadcasted to any shape 
+            # we made sure that the matching is only considered in the 
+            # loss caclulation for epoch >= prepare_epochs 
+            data_dict['aggregated_vote_features'] = 0
 
-        data_dict['aggregated_vote_features'] = preds['score_feats']
         # forward loss 
         data_dict['pg_loss'] = loss
 

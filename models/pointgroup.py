@@ -413,10 +413,6 @@ def model_fn_decorator(test=False):
         input_ = spconv.SparseConvTensor(voxel_feats, voxel_coords.int(), spatial_shape, cfg.batch_size)
 
         ret = model(input_, p2v_map, coords_float, coords[:, 0].int(), batch_offsets, epoch)
-
-        # ScanRefer:
-        # get intermediate cluster features for each proposal
-        score_feats = ret['score_feats']
         
         semantic_scores = ret['semantic_scores'] # (N, nClass) float32, cuda
         pt_offsets = ret['pt_offsets']           # (N, 3), float32, cuda
@@ -438,9 +434,9 @@ def model_fn_decorator(test=False):
         with torch.no_grad():
             preds = {}
             
-            # ScanRefer: 
-            # return intermediate cluster feature vectores 
-            preds['score_feats'] = score_feats
+            # ScanRefer:
+            # get intermediate cluster features for each proposal
+            preds['score_feats'] = ret['score_feats']
 
             preds['semantic'] = semantic_scores
             preds['pt_offsets'] = pt_offsets
