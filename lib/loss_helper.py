@@ -243,7 +243,7 @@ def compute_reference_loss(data_dict, config):
     # NOTE: in PG clustering alg. only points of the same class can be in one cluster 
     preds_segmentation = data_dict['semantic_preds'] # (B, N), long
     # dim 1 for cluster_id, dim 2 for corresponding point idxs in N
-    preds_instances = data_dict['proposals_idx'] # (B, sumNPoint, 2), int, 
+    preds_instances = data_dict['proposals_idx'] # (B, sumNPoint, 2), int, := cluster_id | point_id
 
     # GT segmentation 
     # label creation without using the class labels and real ground thruths
@@ -252,7 +252,8 @@ def compute_reference_loss(data_dict, config):
     # hence we want to compare each cluster with the real cluster to find 
     # the best cluster. 
     gt_segmentation = data_dict['labels'] # (B, N)
-    gt_instances = data_dict['instance_labels'] # (B, sumNPoint, 2), int, 
+    gt_instances = data_dict['instance_labels'] # (B, N)
+    target_inst_id = data_dict['object_id']
 
     # compute the iou score for all predictd positive ref
     batch_size, num_proposals = cluster_preds.shape
@@ -269,16 +270,19 @@ def compute_reference_loss(data_dict, config):
         # GT calculations based on predicted point-lables themselves 
         # by simply counting the points in common and the total points
         target_instance = gt_instances[i]
-        # iterate through all proposals an compute their score 
+        # iterate through all proposals and compute their score 
         # one proposal contains all index numbers of points in the cluster
         ious = []
-        for proposal in preds_instances[i]:
-            common_points = np.intersect1d(proposal, target_instance)
-            # common elements / total distinct elements in both clusters
-            iou = len(common_points)/(2*len(target_instance)-len(common_points))
-            ious.append(iou)
+        nProposal = data_dict["score_feats"].shape[0] # numb of clusters
+        matches_per_clusters = np.zeros(nProposal)
+        for cluster_id, member_point in preds_instances[i]:
+            if member_point in target_instance: 
+                matches_per_clusters[cluster_id] += 1
+        # TODO: verify if cluster_ids are null based (start with zero)
+        # TODO: what happens when to cluster_ids have the same number of matches?
+        best_cluster = np.argmax(matches_per_clusters)
         # one-hot-encoding for CELoss as localization loss
-        labels[i, ious.argmax()] = 1
+        labels[i, best_cluster] = 1
 
     cluster_labels = torch.FloatTensor(labels).cuda()
 

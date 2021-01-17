@@ -158,7 +158,8 @@ class ScannetReferencePointGroupDataset(Dataset):
         voxel_locs, p2v_map, v2p_map = pointgroup_ops.voxelization_idx(locs, self.batch_size, self.mode)
         return {'locs': locs, 'locs_float': locs_float, 'voxel_locs': voxel_locs, 'p2v_map': p2v_map, 'v2p_map': v2p_map,
                 'feats': feats, 'labels': labels, 'instance_labels': instance_labels, 'spatial_shape': spatial_shape,
-                'instance_info': instance_infos, 'instance_pointnum': instance_pointnum, 'offsets': batch_offsets
+                'instance_info': instance_infos, 'instance_pointnum': instance_pointnum, 'offsets': batch_offsets, 
+                'object_id' : object_id,
                 }
 
 
