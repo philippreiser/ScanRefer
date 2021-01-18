@@ -11,6 +11,7 @@ import glob, math, numpy as np
 import scipy.ndimage
 import scipy.interpolate
 import torch
+from torch.utils.data import DataLoader
 
 sys.path.append(os.path.join(os.getcwd(), "lib")) # HACK add the lib folder
 from lib.config import CONF
@@ -43,7 +44,8 @@ class ScannetReferencePointGroupDataset(Dataset):
         full_scale=[128, 512],
         max_npoint=250000,
         batch_size=1,
-        mode=4):
+        mode=4,
+        train_workers=4):
 
         self.scanrefer = scanrefer
         self.scanrefer_all_scene = scanrefer_all_scene # all scene_ids in scanrefer
@@ -59,6 +61,7 @@ class ScannetReferencePointGroupDataset(Dataset):
         self.max_npoint = max_npoint
         self.batch_size = batch_size
         self.mode = mode
+        self.train_workers = train_workers
 
         # load data
         self._load_data()
@@ -69,8 +72,14 @@ class ScannetReferencePointGroupDataset(Dataset):
     def __len__(self):
         return len(self.scanrefer)
 
-    def __getitem__(self, idx):
+    def trainLoader(self):
+        train_set = list(range(len(self.scanrefer)))
+        self.train_data_loader = DataLoader(train_set, batch_size=self.batch_size, collate_fn=self.trainMerge, num_workers=self.train_workers,
+                                            shuffle=True, sampler=None, drop_last=True, pin_memory=True)
+
+    def trainMerge(self, idx):
         start = time.time()
+        idx = idx[0] #TODO: replace with for loop for multiple batches
         scene_id = self.scanrefer[idx]["scene_id"]
         object_id = int(self.scanrefer[idx]["object_id"])
         object_name = " ".join(self.scanrefer[idx]["object_name"].split("_"))
@@ -154,15 +163,16 @@ class ScannetReferencePointGroupDataset(Dataset):
         labels = torch.from_numpy(label.astype(np.int64)).long()   # long (N)
         instance_labels = torch.from_numpy(instance_labels.astype(np.int64)).long()   # long (N)
         spatial_shape = np.clip((locs.max(0)[0][1:] + 1).numpy(), self.full_scale[0], None)     # long (3)
-        lang_feat = torch.from_numpy(lang_feat.astype(np.float32))
-        lang_len = torch.from_numpy(np.array(lang_len).astype(np.int64))
+        lang_feat = torch.from_numpy(lang_feat.astype(np.float32))[None, :, :]
+        lang_len = torch.from_numpy(np.array(lang_len).astype(np.int64))[None]
         ### voxelize
         voxel_locs, p2v_map, v2p_map = pointgroup_ops.voxelization_idx(locs, self.batch_size, self.mode)
+        load_time = torch.from_numpy(np.array(time.time() - start))[None]
         return {'locs': locs, 'locs_float': locs_float, 'voxel_locs': voxel_locs, 'p2v_map': p2v_map, 'v2p_map': v2p_map,
                 'feats': feats, 'labels': labels, 'instance_labels': instance_labels, 'spatial_shape': spatial_shape,
                 'instance_info': instance_infos, 'instance_pointnum': instance_pointnum, 'offsets': batch_offsets, 
                 "lang_feat":lang_feat, "lang_len": lang_len,
-                'object_id' : object_id
+                'object_id': object_id, "load_time": load_time
                 }
 
 
