@@ -161,8 +161,8 @@ class ScannetReferencePointGroupDataset(Dataset):
         return {'locs': locs, 'locs_float': locs_float, 'voxel_locs': voxel_locs, 'p2v_map': p2v_map, 'v2p_map': v2p_map,
                 'feats': feats, 'labels': labels, 'instance_labels': instance_labels, 'spatial_shape': spatial_shape,
                 'instance_info': instance_infos, 'instance_pointnum': instance_pointnum, 'offsets': batch_offsets, 
-                "lang_feat":lang_feat, "lang_len": lang_len
-                'object_id' : object_id,
+                "lang_feat":lang_feat, "lang_len": lang_len,
+                'object_id' : object_id
                 }
 
 

@@ -142,8 +142,9 @@ class RefNet(nn.Module):
         loss, preds, _, _ = model_fn(data_dict, self.pointgroup, data_dict['epoch']) # data_dict['epoch'] = 129
 
         if (data_dict['epoch'] > cfg.prepare_epochs): 
-            # preds['score_feats'] has to be of dim.: [batch_size, num_proposal, 128]
-            assert(preds['score_feats'].shape[-1] == 128)
+            # preds['score_feats'] has to be of dim.: [batch_size, num_proposal, 128] 
+            # [batch_size, num_proposal, 16] ? 
+            assert(preds['score_feats'].shape[-1] == 16)
             data_dict['aggregated_vote_features'] = preds['score_feats']
         else: 
             # scalar as default value - can be broadcasted to any shape 
@@ -154,7 +155,7 @@ class RefNet(nn.Module):
         # forward loss 
         data_dict['pg_loss'] = loss
 
-        if not self.no_reference:
+        if not self.no_reference and (data_dict['epoch'] > cfg.prepare_epochs):
             #######################################
             #                                     #
             #           LANGUAGE BRANCH           #
