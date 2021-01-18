@@ -47,7 +47,7 @@ def get_dataloader(args, scanrefer, all_scene_list, split, config, augment, data
         use_multiview=args.use_multiview
     )
     # dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True)
-    dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=4)
+    dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=False, num_workers=4) # Set shuffle=True
 
     return dataset, dataloader
 
@@ -100,7 +100,7 @@ def get_scanrefer(scanrefer_train, scanrefer_val, num_scenes, use_sparse_conv):
 
 def func(args):
     # dataset
-    scanrefer_train, scanrefer_val, all_scene_list = get_scanrefer(SCANREFER_TRAIN[:10], SCANREFER_VAL[:3], args.num_scenes, args.use_sparseconv)
+    scanrefer_train, scanrefer_val, all_scene_list = get_scanrefer(SCANREFER_TRAIN[:1], SCANREFER_VAL[:1], args.num_scenes, args.use_sparseconv)
     scanrefer = {
         "train": scanrefer_train,
         "val": scanrefer_val
@@ -126,8 +126,15 @@ def func(args):
         no_reference=args.no_reference
     )
     model.cuda()
+    # train_dataset, train_dataloader = get_dataloader(args, scanrefer, all_scene_list, "train", DC, True, ScannetReferenceDataset)
+    # sample = train_dataset[0]
+    # batch = next(iter(train_dataloader))
     sample = train_dataset[0]
-    model(train_dataset[0])
+    sample['epoch'] = 129
+    sample['lang_feat'] = sample['lang_feat'].cuda().unsqueeze(0)
+    sample['lang_len'] = sample['lang_len'].unsqueeze(0)
+    model(sample)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

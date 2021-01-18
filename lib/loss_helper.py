@@ -378,7 +378,7 @@ def get_loss(data_dict, config, detection=True, reference=True, use_lang_classif
     # TODO: weight set to 0.8 for now (so that weights sum up to 1)
     if data_dict['epoch'] > cfg.prepare_epochs: 
         loss = 0.1*data_dict["ref_loss"] + 0.1*data_dict["lang_loss"] + 0.8 * data_dict['pg_loss']
-         loss *= 10 # amplify
+        loss *= 10 # amplify
     else: 
         loss = data_dict['pg_loss']
 
