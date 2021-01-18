@@ -351,7 +351,7 @@ def get_loss(data_dict, config, detection=True, reference=True, use_lang_classif
     #    data_dict['sem_cls_loss'] = torch.zeros(1)[0].cuda()
     #    data_dict['box_loss'] = torch.zeros(1)[0].cuda()
 
-    if reference:
+    if reference and data_dict['epoch'] > cfg.prepare_epochs:
         # Reference loss
         ref_loss, _, cluster_labels = compute_reference_loss(data_dict, config)
         #data_dict["cluster_labels"] = cluster_labels
@@ -367,7 +367,7 @@ def get_loss(data_dict, config, detection=True, reference=True, use_lang_classif
         # store
         data_dict["ref_loss"] = torch.zeros(1)[0].cuda()
 
-    if reference and use_lang_classifier:
+    if reference and use_lang_classifier and data_dict['epoch'] > cfg.prepare_epochs:
         data_dict["lang_loss"] = compute_lang_classification_loss(data_dict)
     else:
         data_dict["lang_loss"] = torch.zeros(1)[0].cuda()
@@ -380,11 +380,8 @@ def get_loss(data_dict, config, detection=True, reference=True, use_lang_classif
     # only the last two losses are needed
     # add the loss calculated during the RefNet.forward by calling pointgroup.model_fn
     # TODO: weight set to 0.8 for now (so that weights sum up to 1)
-    if data_dict['epoch'] > cfg.prepare_epochs: 
-        loss = 0.1*data_dict["ref_loss"] + 0.1*data_dict["lang_loss"] + 0.8 * data_dict['pg_loss']
-        loss *= 10 # amplify
-    else: 
-        loss = data_dict['pg_loss']
+    loss = 0.1*data_dict["ref_loss"] + 0.1*data_dict["lang_loss"] + 0.8 * data_dict['pg_loss']
+    loss *= 10 # amplify
 
     data_dict['loss'] = loss
 

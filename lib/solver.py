@@ -309,10 +309,12 @@ class Solver():
         dataloader = dataloader if phase == "train" else tqdm(dataloader)
 
         for data_dict in dataloader:
-            # move to cuda
-            for key in data_dict:
-                data_dict[key] = data_dict[key].cuda()
+            # move not to cuda, because pointgroup does it already
+            # for key in data_dict:
+            #     data_dict[key] = data_dict[key].cuda()
 
+            # only lang_feat has to be moved to cuda
+            data_dict['lang_feat'] = data_dict['lang_feat'].cuda()
             # initialize the running loss
             self._running_log = {
                 # loss

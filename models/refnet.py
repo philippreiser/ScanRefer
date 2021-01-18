@@ -141,21 +141,12 @@ class RefNet(nn.Module):
         model_fn = model_fn_decorator()
         loss, preds, _, _ = model_fn(data_dict, self.pointgroup, data_dict['epoch']) # data_dict['epoch'] = 129
 
-        if (data_dict['epoch'] > cfg.prepare_epochs): 
-            # preds['score_feats'] has to be of dim.: [batch_size, num_proposal, 128] 
-            # [batch_size, num_proposal, 16] ? 
-            assert(preds['score_feats'].shape[-1] == 16)
-            data_dict['aggregated_vote_features'] = preds['score_feats']
-        else: 
-            # scalar as default value - can be broadcasted to any shape 
-            # we made sure that the matching is only considered in the 
-            # loss caclulation for epoch >= prepare_epochs 
-            data_dict['aggregated_vote_features'] = 0
-
         # forward loss 
         data_dict['pg_loss'] = loss
 
         if not self.no_reference and (data_dict['epoch'] > cfg.prepare_epochs):
+            # TODO: Check why m = 16 in default config?
+            data_dict['aggregated_vote_features'] = preds['score_feats']
             #######################################
             #                                     #
             #           LANGUAGE BRANCH           #

@@ -21,7 +21,7 @@ DATA:
 
 STRUCTURE:
   model_name: pointgroup
-  m: 16 # 16 or 32
+  m: 128 # 16 or 32
   block_residual: True
   block_reps: 2
 
