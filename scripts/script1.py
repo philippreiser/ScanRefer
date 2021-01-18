@@ -28,6 +28,7 @@ from util.log import logger
 import util.utils as utils
 
 from scripts_2_pointgroup import init, train_epoch, eval_epoch
+from train import get_solver
 
 SCANREFER_TRAIN = json.load(open(os.path.join(CONF.PATH.DATA, "ScanRefer_filtered_train.json")))
 SCANREFER_VAL = json.load(open(os.path.join(CONF.PATH.DATA, "ScanRefer_filtered_val.json")))
@@ -47,8 +48,9 @@ def get_dataloader(args, scanrefer, all_scene_list, split, config, augment, data
         use_multiview=args.use_multiview
     )
     # dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True)
-    dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=False, num_workers=4) # Set shuffle=True
-
+    # dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=False, num_workers=4) # Set shuffle=True
+    dataset.trainLoader()
+    dataloader = dataset.train_data_loader
     return dataset, dataloader
 
 def get_scannet_scene_list(split):
@@ -113,6 +115,9 @@ def func(args):
         "train": train_dataloader,
         "val": val_dataloader
     }
+    solver, num_params, root = get_solver(args, dataloader)
+    solver(args.epoch, args.verbose)
+
     input_channels = int(args.use_multiview) * 128 + int(args.use_normal) * 3 + int(args.use_color) * 3 + int(not args.no_height)
     model = RefNet(
         num_class=DC.num_class,
@@ -128,13 +133,13 @@ def func(args):
     model.cuda()
     # train_dataset, train_dataloader = get_dataloader(args, scanrefer, all_scene_list, "train", DC, True, ScannetReferenceDataset)
     # sample = train_dataset[0]
-    # batch = next(iter(train_dataloader))
-    sample = train_dataset[0]
+    sample = next(iter(train_dataloader))
+    # sample = train_dataset[0]
     sample['epoch'] = 129
-    sample['lang_feat'] = sample['lang_feat'].cuda().unsqueeze(0)
-    sample['lang_len'] = sample['lang_len'].unsqueeze(0)
-    model(sample)
-
+    sample['lang_feat'] = sample['lang_feat'].cuda()
+    sample['lang_len'] = sample['lang_len']
+    ret = model(sample)
+    print(ret['pg_loss'])
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
