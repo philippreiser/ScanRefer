@@ -328,7 +328,6 @@ class PointGroup(nn.Module):
             
             # ScanRefer:
             # save intermediate result
-            # TODO: ret['score_feats'] is always needed, but only returned if epoch > conf.prepare epoch
             ret['score_feats'] = score_feats
 
             scores = self.score_linear(score_feats)  # (nProposal, 1)

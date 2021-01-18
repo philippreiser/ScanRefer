@@ -162,6 +162,7 @@ class ScannetReferencePointGroupDataset(Dataset):
                 'feats': feats, 'labels': labels, 'instance_labels': instance_labels, 'spatial_shape': spatial_shape,
                 'instance_info': instance_infos, 'instance_pointnum': instance_pointnum, 'offsets': batch_offsets, 
                 "lang_feat":lang_feat, "lang_len": lang_len
+                'object_id' : object_id,
                 }
 
 
