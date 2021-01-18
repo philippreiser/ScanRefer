@@ -286,7 +286,6 @@ class PointGroup(nn.Module):
 
         if(epoch > self.prepare_epochs):
             #### get prooposal clusters
-            self.cluster_radius = 0.5
             object_idxs = torch.nonzero(semantic_preds > 1).view(-1)
 
             batch_idxs_ = batch_idxs[object_idxs]
@@ -302,7 +301,7 @@ class PointGroup(nn.Module):
             proposals_idx_shift[:, 1] = object_idxs[proposals_idx_shift[:, 1].long()].int()
             # proposals_idx_shift: (sumNPoint, 2), int, dim 0 for cluster_id, dim 1 for corresponding point idxs in N
             # proposals_offset_shift: (nProposal + 1), int
-            print("proposals_offset_shift: ", proposals_offset_shift.shape)
+
             idx, start_len = pointgroup_ops.ballquery_batch_p(coords_, batch_idxs_, batch_offsets_, self.cluster_radius, self.cluster_meanActive)
             proposals_idx, proposals_offset = pointgroup_ops.bfs_cluster(semantic_preds_cpu, idx.cpu(), start_len.cpu(), self.cluster_npoint_thre)
             proposals_idx[:, 1] = object_idxs[proposals_idx[:, 1].long()].int()
@@ -317,9 +316,7 @@ class PointGroup(nn.Module):
             # ScanRefer: 
             # predicted instances are needed in loss calculation in loss_helper.py
             ret['proposals_idx'] = proposals_idx
-            print(ret['proposals_idx'][:5])
-            print("last props: ", ret['proposals_idx'][-5:])
-            print(ret['proposals_idx'].min(), ret['proposals_idx'].max())
+
             #### proposals voxelization again
             input_feats, inp_map = self.clusters_voxelization(proposals_idx, proposals_offset, output_feats, coords, self.score_fullscale, self.score_scale, self.mode)
 
