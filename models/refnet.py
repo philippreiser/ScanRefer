@@ -140,14 +140,17 @@ class RefNet(nn.Module):
         # TODO: forwarding to downstream app?
         model_fn = model_fn_decorator()
         loss, preds, _, _ = model_fn(data_dict, self.pointgroup, data_dict['epoch']) # data_dict['epoch'] = 129
-        data_dict['semantic_preds'] = preds['semantic_preds']
 
         # forward loss 
         data_dict['pg_loss'] = loss
 
         if not self.no_reference and (data_dict['epoch'] > cfg.prepare_epochs):
+            # bridge important data for next computations
+            data_dict['semantic_preds'] = preds['semantic_preds']
+            _, data_dict['proposals_idx'] = preds['proposals']
             # TODO: Check why m = 16 in default config?
             data_dict['aggregated_vote_features'] = preds['score_feats']
+
             #######################################
             #                                     #
             #           LANGUAGE BRANCH           #
