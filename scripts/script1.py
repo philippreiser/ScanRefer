@@ -139,8 +139,9 @@ def func(args):
     sample['lang_feat'] = sample['lang_feat'].cuda()
     sample['lang_len'] = sample['lang_len']
     ret = model(sample)
-    # loss = get_loss(ret, args)
-    # ret['loss'].backward()
+    loss = get_loss(ret, args)
+    print(loss)
+    ret['loss'].backward()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

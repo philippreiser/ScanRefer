@@ -198,41 +198,11 @@ def compute_reference_loss(data_dict, config):
         ref_loss, lang_loss, cluster_preds, cluster_labels
     """
 
-    # TODO: compute IoU without bboxes, but the real labeled points with the pred labels for each point
-
     # NOTE: data_dict["cluster_ref"] are the cluster confidences from the match_module.py
     #       B := batch_size
 
     # unpack
     cluster_preds = data_dict["cluster_ref"] # (B, num_proposal)
-
-    # predicted bbox
-    #pred_ref = data_dict['cluster_ref'].detach().cpu().numpy() # (B,)
-
-    #pred_center = data_dict['center'].detach().cpu().numpy() # (B,K,3)
-    #pred_heading_class = torch.argmax(data_dict['heading_scores'], -1) # B,num_proposal
-    #pred_heading_residual = torch.gather(data_dict['heading_residuals'], 2, pred_heading_class.unsqueeze(-1)) # B,num_proposal,1
-    #pred_heading_class = pred_heading_class.detach().cpu().numpy() # B,num_proposal
-    #pred_heading_residual = pred_heading_residual.squeeze(2).detach().cpu().numpy() # B,num_proposal
-    #pred_size_class = torch.argmax(data_dict['size_scores'], -1) # B,num_proposal
-    #pred_size_residual = torch.gather(data_dict['size_residuals'], 2, pred_size_class.unsqueeze(-1).unsqueeze(-1).repeat(1,1,1,3)) # B,num_proposal,1,3
-    #pred_size_class = pred_size_class.detach().cpu().numpy()
-    #pred_size_residual = pred_size_residual.squeeze(2).detach().cpu().numpy() # B,num_proposal,3
-
-    # ground truth bbox
-
-    # TODO: GT-BB needs to be constructed as well --> based on red_center_label, ref_heading_class_label, etc. 
-    #       What are those? => What is given as GT? Based on that I have to do the dynamic labeling 
-
-    #gt_center = data_dict['ref_center_label'].cpu().numpy() # (B,3)
-    #gt_heading_class = data_dict['ref_heading_class_label'].cpu().numpy() # B
-    #gt_heading_residual = data_dict['ref_heading_residual_label'].cpu().numpy() # B
-    #gt_size_class = data_dict['ref_size_class_label'].cpu().numpy() # B
-    #gt_size_residual = data_dict['ref_size_residual_label'].cpu().numpy() # B,3
-    # convert gt bbox parameters to bbox corners
-    #gt_obb_batch = config.param2obb_batch(gt_center[:, 0:3], gt_heading_class, gt_heading_residual,
-    #                gt_size_class, gt_size_residual)
-    #gt_bbox_batch = get_3d_box_batch(gt_obb_batch[:, 3:6], gt_obb_batch[:, 6], gt_obb_batch[:, 0:3])
 
     # GT segmentation 
     # label creation without using the class labels and real ground thruths
@@ -240,11 +210,12 @@ def compute_reference_loss(data_dict, config):
     # segmentation loss. (+ the same class can appear more than once)
     # hence we want to compare each cluster with the real cluster to find 
     # the best cluster. 
-    gt_segmentation = data_dict['labels'] # (B, N)
-    gt_instances = data_dict['instance_labels'] # (B, N)
+    # NOTE: PG doesn't use an additional batch size dim (labels were also adjusted to that)
+    gt_instances = data_dict['instance_labels'] # (B*N)
     target_inst_id = data_dict['object_id']
 
     # PointGroup: 
+    # TODO: 
     # QUESTION: will each predicted point remain in one cluster? 
     # IF SO: I don't need to do IoU calculations I simply have to give the CELoss
     #        the correct predcited localization confidences.
@@ -252,46 +223,37 @@ def compute_reference_loss(data_dict, config):
     #        made for segm. and language.
     # NOTE: in PG clustering alg. only points of the same class can be in one cluster 
     
-    preds_segmentation = data_dict['semantic_preds'] # (B, N), long
+    preds_segmentation = data_dict['semantic_preds'] # (B*N), long
     # dim 1 for cluster_id, dim 2 for corresponding point idxs in N
-    preds_instances = data_dict['proposals_idx'] # (B, sumNPoint, 2), int, := cluster_id | point_id
-
+    preds_instances = data_dict['proposals_idx'] # (B*sumNPoint, 2), int, := cluster_id | point_id
     # compute the iou score for all predictd positive ref
     batch_size, num_proposals = cluster_preds.shape
     labels = np.zeros((batch_size, num_proposals))
-    for i in range(preds_instances.shape[0]):
-        # convert the bbox parameters to bbox corners
-        #pred_obb_batch = config.param2obb_batch(pred_center[i, :, 0:3], pred_heading_class[i], pred_heading_residual[i],
-        #            pred_size_class[i], pred_size_residual[i])
-        #pred_bbox_batch = get_3d_box_batch(pred_obb_batch[:, 3:6], pred_obb_batch[:, 6], pred_obb_batch[:, 0:3])
-        #ious = box3d_iou_batch(pred_bbox_batch, np.tile(gt_bbox_batch[i], (num_proposals, 1, 1)))
-        #labels[i, ious.argmax()] = 1 # treat the bbox with highest iou score as the gt
 
-        # PointGroup: 
-        # GT calculations based on predicted point-lables themselves 
-        # by simply counting the points in common and the total points
-        target_instance = gt_instances[i]
-        # iterate through all proposals and compute their score 
-        # one proposal contains all index numbers of points in the cluster
-        ious = []
-        # same as above: score_feats needs to be reshaped to have a batch_size dim.
-        nProposal = data_dict["score_feats"].shape[1] # numb of clusters
-        matches_per_clusters = np.zeros(nProposal)
-        for cluster_id, member_point in preds_instances[i]:
-            if member_point in target_instance: 
-                matches_per_clusters[cluster_id] += 1
-        # TODO: verify if cluster_ids are null based (start with zero)
-        # TODO: what happens when to cluster_ids have the same number of matches?
-        best_cluster = np.argmax(matches_per_clusters)
-        # one-hot-encoding for CELoss as localization loss
-        labels[i, best_cluster] = 1
+    # gt_instances contains for each of the points their corresponding cluster_id
+    # TODO: we assume the point_ids are assigned based on their order in gt_instances 
+    #       we also assume that these ids match with the point_ids from PG
+    correct_indices = np.arange(len(gt_instances))[gt_instances==target_inst_id]
 
+    nSamples = preds_instances.shape[0]
+
+    for i, pred_instance in enumerate(preds_instances):
+        cluster_id, member_point = pred_instance
+        if int(member_point) in correct_indices: 
+            # in preds_instances for every point there is one entry (one assigned cluster_id)
+            # I want all of them to count for one sample (the underlying scan)
+            # the cluster_id with the most counts will be the true label.
+            # counts are defined as points being in the correct_indices (-> IoU)
+            index = int(np.floor(i/nSamples))
+            labels[index, cluster_id] += 1
+            labels = np.floor(labels/labels.max())
     cluster_labels = torch.FloatTensor(labels).cuda()
+
+    # TODO: check if cluster_is starts with 0
 
     # reference loss
     criterion = SoftmaxRankingLoss()
     loss = criterion(cluster_preds, cluster_labels.float().clone())
-
     return loss, cluster_preds, cluster_labels
 
 def compute_lang_classification_loss(data_dict):
