@@ -18,6 +18,9 @@ import util.utils as utils
 
 from data.scannetv2_inst import Dataset as PointGroupDataset
 from lib.dataset_pointgroup_ref import ScannetReferencePointGroupDataset
+from lib.config import CONF
+from script1 import SCANREFER_TRAIN, SCANREFER_VAL, DC, get_dataloader
+
 """
 if __name__ == "__main__":
     dataset1 = PointGroupDataset()
@@ -72,9 +75,6 @@ def train_epoch(train_loader, model, model_fn, optimizer, epoch):
         utils.step_learning_rate(optimizer, cfg.lr, epoch - 1, cfg.step_epoch, cfg.multiplier)
 
         ##### prepare input and forward
-        print(batch['feats'].shape)
-        print(batch['labels'].shape)
-        print()
         loss, _, visual_dict, meter_dict = model_fn(batch, model, epoch)
 
         ##### meter_dict
@@ -190,6 +190,21 @@ if __name__ == '__main__':
             dataset = data.scannetv2_inst.Dataset()
             dataset.trainLoader()
             dataset.valLoader()
+        elif data_name == 'pg_sr':
+            import lib.dataset_pointgroup_ref
+            scanrefer_train, scanrefer_val, all_scene_list = get_scanrefer(SCANREFER_TRAIN[:1], SCANREFER_VAL[:1])
+            scanrefer = {
+                "train": scanrefer_train,
+                "val": scanrefer_val
+            }
+
+            # dataloader
+            train_dataset, train_dataloader = get_dataloader(args, scanrefer, all_scene_list, "train", DC, True, ScannetReferencePointGroupDataset)
+            val_dataset, val_dataloader = get_dataloader(args, scanrefer, all_scene_list, "val", DC, False, ScannetReferencePointGroupDataset)
+            dataloader = {
+                "train": train_dataloader,
+                "val": val_dataloader
+            }
         else:
             print("Error: no data loader - " + data_name)
             exit(0)

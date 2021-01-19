@@ -46,9 +46,10 @@ class MatchModule(nn.Module):
 
         # fuse
         # num_proposals can vary depending on cluster alg
-        adapted_features = torch.zeros_like(lang_feat.shape[0], self.num_proposals-features.shape[1], features.shape[2])
+        features = features[None, :, :]
+        adapted_features = torch.zeros([lang_feat.shape[0], self.num_proposals-features.shape[1], features.shape[2]]).cuda()
         features = torch.cat([features, adapted_features], dim=1)
-        features = torch.cat([adapted_features, lang_feat], dim=-1) # batch_size, num_proposals, 128 + lang_size
+        features = torch.cat([features, lang_feat], dim=-1) # batch_size, num_proposals, 128 + lang_size
         features = features.permute(0, 2, 1).contiguous() # batch_size, 128 + lang_size, num_proposals
 
         # fuse features

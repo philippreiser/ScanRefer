@@ -26,8 +26,8 @@ from lib.pointgroup_ops.functions import pointgroup_ops
 from util.config import cfg
 from util.log import logger
 import util.utils as utils
+from lib.loss_helper import get_loss
 
-from scripts_2_pointgroup import init, train_epoch, eval_epoch
 from train import get_solver
 
 SCANREFER_TRAIN = json.load(open(os.path.join(CONF.PATH.DATA, "ScanRefer_filtered_train.json")))
@@ -58,7 +58,7 @@ def get_scannet_scene_list(split):
 
     return scene_list
 
-def get_scanrefer(scanrefer_train, scanrefer_val, num_scenes, use_sparse_conv):
+def get_scanrefer(scanrefer_train, scanrefer_val, num_scenes=-1):
     if args.no_reference:
         train_scene_list = get_scannet_scene_list("train")
         new_scanrefer_train = []
@@ -102,7 +102,7 @@ def get_scanrefer(scanrefer_train, scanrefer_val, num_scenes, use_sparse_conv):
 
 def func(args):
     # dataset
-    scanrefer_train, scanrefer_val, all_scene_list = get_scanrefer(SCANREFER_TRAIN[:1], SCANREFER_VAL[:1], args.num_scenes, args.use_sparseconv)
+    scanrefer_train, scanrefer_val, all_scene_list = get_scanrefer(SCANREFER_TRAIN[:1], SCANREFER_VAL[:1], args.num_scenes)
     scanrefer = {
         "train": scanrefer_train,
         "val": scanrefer_val
@@ -115,8 +115,8 @@ def func(args):
         "train": train_dataloader,
         "val": val_dataloader
     }
-    solver, num_params, root = get_solver(args, dataloader)
-    solver(args.epoch, args.verbose)
+    #solver, num_params, root = get_solver(args, dataloader)
+    #solver(args.epoch, args.verbose)
 
     input_channels = int(args.use_multiview) * 128 + int(args.use_normal) * 3 + int(args.use_color) * 3 + int(not args.no_height)
     model = RefNet(
@@ -139,12 +139,13 @@ def func(args):
     sample['lang_feat'] = sample['lang_feat'].cuda()
     sample['lang_len'] = sample['lang_len']
     ret = model(sample)
-    print(ret['pg_loss'])
+    # loss = get_loss(ret, args)
+    # ret['loss'].backward()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--tag", type=str, help="tag for the training, e.g. cuda_wl", default="")
-    parser.add_argument("--gpu", type=str, help="gpu", default="2")
+    parser.add_argument("--gpu", type=str, help="gpu", default="1")
     parser.add_argument("--batch_size", type=int, help="batch size", default=1)
     parser.add_argument("--epoch", type=int, help="number of epochs", default=50)
     parser.add_argument("--verbose", type=int, help="iterations of showing verbose", default=10)

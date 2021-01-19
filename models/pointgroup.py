@@ -433,6 +433,7 @@ def model_fn_decorator(test=False):
         with torch.no_grad():
             preds = {}
 
+            preds['semantic_preds'] = ret['semantic_preds']
             preds['semantic'] = semantic_scores
             preds['pt_offsets'] = pt_offsets
             if(epoch > cfg.prepare_epochs):

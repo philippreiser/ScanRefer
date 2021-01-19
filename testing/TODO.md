@@ -6,7 +6,7 @@
 - [ ] Overfit on one Sample
 
 ### TODO (19.01): Train on full dataset
-- [ ] Check training progress
+- [ ] Start Training on one sample
 
 ### TODO (20.01): Evaluation
 - [ ] Metrics as in ScanRefer paper

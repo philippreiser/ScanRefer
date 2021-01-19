@@ -140,6 +140,7 @@ class RefNet(nn.Module):
         # TODO: forwarding to downstream app?
         model_fn = model_fn_decorator()
         loss, preds, _, _ = model_fn(data_dict, self.pointgroup, data_dict['epoch']) # data_dict['epoch'] = 129
+        data_dict['semantic_preds'] = preds['semantic_preds']
 
         # forward loss 
         data_dict['pg_loss'] = loss

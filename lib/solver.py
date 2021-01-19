@@ -192,7 +192,8 @@ class Solver():
                 # save model
                 self._log("saving last models...\n")
                 model_root = os.path.join(CONF.PATH.OUTPUT, self.stamp)
-                torch.save(self.model.state_dict(), os.path.join(model_root, "model_last.pth"))
+                # TODO
+                # torch.save(self.model.state_dict(), os.path.join(model_root, "model_last.pth"))
 
                 # update lr scheduler
                 if self.lr_scheduler:
@@ -308,6 +309,9 @@ class Solver():
         # change dataloader
         dataloader = dataloader if phase == "train" else tqdm(dataloader)
 
+        # Empty cuda cache for pointgroup
+        torch.cuda.empty_cache()
+ 
         for data_dict in dataloader:
             # move not to cuda, because pointgroup does it already
             # for key in data_dict:
@@ -340,11 +344,13 @@ class Solver():
             with torch.autograd.set_detect_anomaly(True):
                 # forward
                 start = time.time()
+                self.optimizer.zero_grad()
                 data_dict["epoch"] = epoch_id
                 data_dict = self._forward(data_dict)
                 self._compute_loss(data_dict)
                 self.log[phase]["forward"].append(time.time() - start)
-
+                print("phase: ", phase)
+                print("Epoch: ", epoch_id," Loss: ", data_dict['loss'])
                 # backward
                 if phase == "train":
                     start = time.time()
@@ -353,12 +359,12 @@ class Solver():
             
             # eval
             start = time.time()
-            self._eval(data_dict)
-            self.log[phase]["eval"].append(time.time() - start)
+            # self._eval(data_dict)
+            # self.log[phase]["eval"].append(time.time() - start)
 
             # record log
             self.log[phase]["loss"].append(self._running_log["loss"].item())
-            self.log[phase]["ref_loss"].append(self._running_log["ref_loss"].item())
+            """self.log[phase]["ref_loss"].append(self._running_log["ref_loss"].item())
             self.log[phase]["lang_loss"].append(self._running_log["lang_loss"].item())
 
             # PointGroup: 
@@ -431,7 +437,7 @@ class Solver():
                 # save model
                 self._log("saving best models...\n")
                 model_root = os.path.join(CONF.PATH.OUTPUT, self.stamp)
-                torch.save(self.model.state_dict(), os.path.join(model_root, "model.pth"))
+                torch.save(self.model.state_dict(), os.path.join(model_root, "model.pth"))"""
 
     def _dump_log(self, phase):
         log = {
