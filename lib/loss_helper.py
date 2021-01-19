@@ -243,7 +243,6 @@ def compute_reference_loss(data_dict, config):
     gt_segmentation = data_dict['labels'] # (B, N)
     gt_instances = data_dict['instance_labels'] # (B, N)
     target_inst_id = data_dict['object_id']
-    B, N = gt_instances.shape
 
     # PointGroup: 
     # QUESTION: will each predicted point remain in one cluster? 
@@ -252,10 +251,10 @@ def compute_reference_loss(data_dict, config):
     #        Find out more about the localization confidences + how the targets are 
     #        made for segm. and language.
     # NOTE: in PG clustering alg. only points of the same class can be in one cluster 
-    # NOTE: PG doesn't use an additional batch size dim -> we have to introduce that
-    preds_segmentation = data_dict['semantic_preds'].view(B, -1) # (B, N), long
+    
+    preds_segmentation = data_dict['semantic_preds'] # (B, N), long
     # dim 1 for cluster_id, dim 2 for corresponding point idxs in N
-    preds_instances = data_dict['proposals_idx'].view(B, -1, 2) # (B, sumNPoint, 2), int, := cluster_id | point_id
+    preds_instances = data_dict['proposals_idx'] # (B, sumNPoint, 2), int, := cluster_id | point_id
 
     # compute the iou score for all predictd positive ref
     batch_size, num_proposals = cluster_preds.shape
@@ -276,7 +275,7 @@ def compute_reference_loss(data_dict, config):
         # one proposal contains all index numbers of points in the cluster
         ious = []
         # same as above: score_feats needs to be reshaped to have a batch_size dim.
-        nProposal = data_dict["score_feats"].view(B, -1, 1).shape[1] # numb of clusters
+        nProposal = data_dict["score_feats"].shape[1] # numb of clusters
         matches_per_clusters = np.zeros(nProposal)
         for cluster_id, member_point in preds_instances[i]:
             if member_point in target_instance: 

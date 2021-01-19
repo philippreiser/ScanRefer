@@ -146,10 +146,12 @@ class RefNet(nn.Module):
 
         if not self.no_reference and (data_dict['epoch'] > cfg.prepare_epochs):
             # bridge important data for next computations
-            data_dict['semantic_preds'] = preds['semantic_preds']
-            _, data_dict['proposals_idx'] = preds['proposals']
+            # NOTE: PG doesn't use an additional batch size dim -> we have to introduce that
+            B, N = data_dict['instance_labels'].shape
+            data_dict['semantic_preds'] = preds['semantic_preds'].view(B, -1)
+            _, data_dict['proposals_idx'] = preds['proposals'].view(B, -1, 2)
             # TODO: Check why m = 16 in default config?
-            data_dict['aggregated_vote_features'] = preds['score_feats']
+            data_dict['aggregated_vote_features'] = preds['score_feats'].view(B, -1, 1)
 
             #######################################
             #                                     #
