@@ -17,7 +17,7 @@ sys.path.append(os.path.join(os.getcwd())) # HACK add the root folder
 from data.scannet.model_util_scannet import ScannetDatasetConfig
 from lib.dataset import ScannetReferenceDataset
 from lib.solver import Solver
-from lib.solver_new import SolverDebug
+from lib.solver_debug import SolverDebug
 from lib.config import CONF
 from models.refnet import RefNet
 

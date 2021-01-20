@@ -122,6 +122,11 @@ class ScannetReferencePointGroupDataset(Dataset):
         #     height = point_cloud[:,2] - floor_height
         #     point_cloud = np.concatenate([point_cloud, np.expand_dims(height, 1)],1) 
         
+        point_cloud, choices = random_sampling(point_cloud, self.num_points, return_choices=True)        
+        instance_labels = instance_labels[choices]
+        semantic_labels = semantic_labels[choices]
+        pcl_color = pcl_color[choices]
+
         xyz_origin = point_cloud
         label, instance_label = semantic_labels, instance_labels
         rgb = pcl_color

@@ -118,7 +118,7 @@ def func(args):
     solver, num_params, root = get_solver(args, dataloader)
     solver(args.epoch, args.verbose)
 
-    input_channels = int(args.use_multiview) * 128 + int(args.use_normal) * 3 + int(args.use_color) * 3 + int(not args.no_height)
+    """input_channels = int(args.use_multiview) * 128 + int(args.use_normal) * 3 + int(args.use_color) * 3 + int(not args.no_height)
     model = RefNet(
         num_class=DC.num_class,
         num_heading_bin=DC.num_heading_bin,
@@ -142,20 +142,20 @@ def func(args):
     loss = get_loss(ret, args)
     
     ret['loss'].backward()
-    print(loss)
+    print(loss)"""
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--tag", type=str, help="tag for the training, e.g. cuda_wl", default="")
-    parser.add_argument("--gpu", type=str, help="gpu", default="1")
+    parser.add_argument("--gpu", type=str, help="gpu", default="0")
     parser.add_argument("--batch_size", type=int, help="batch size", default=1)
     parser.add_argument("--epoch", type=int, help="number of epochs", default=50)
     parser.add_argument("--verbose", type=int, help="iterations of showing verbose", default=10)
     parser.add_argument("--val_step", type=int, help="iterations of validating", default=5000)
     parser.add_argument("--lr", type=float, help="learning rate", default=1e-3)
     parser.add_argument("--wd", type=float, help="weight decay", default=1e-5)
-    parser.add_argument("--num_points", type=int, default=40000, help="Point Number [default: 40000]")
+    parser.add_argument("--num_points", type=int, default=100, help="Point Number [default: 40000]")
     parser.add_argument("--num_proposals", type=int, default=256, help="Proposal number [default: 256]")
     parser.add_argument("--num_scenes", type=int, default=-1, help="Number of scenes [default: -1]")
     parser.add_argument("--seed", type=int, default=42, help="random seed")
