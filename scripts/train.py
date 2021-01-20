@@ -17,6 +17,7 @@ sys.path.append(os.path.join(os.getcwd())) # HACK add the root folder
 from data.scannet.model_util_scannet import ScannetDatasetConfig
 from lib.dataset import ScannetReferenceDataset
 from lib.solver import Solver
+from lib.solver_new import SolverDebug
 from lib.config import CONF
 from models.refnet import RefNet
 
@@ -127,7 +128,7 @@ def get_solver(args, dataloader):
     BN_DECAY_STEP = 20 if args.no_reference else None
     BN_DECAY_RATE = 0.5 if args.no_reference else None
 
-    solver = Solver(
+    solver = SolverDebug( #TODO: Solver(
         model=model, 
         config=DC, 
         dataloader=dataloader, 

@@ -189,10 +189,9 @@ class Solver():
                 # feed 
                 self._feed(self.dataloader["train"], "train", epoch_id)
 
-                # save model
-                self._log("saving last models...\n")
-                model_root = os.path.join(CONF.PATH.OUTPUT, self.stamp)
-                # TODO
+                # TODO: when overfit works: save model
+                # self._log("saving last models...\n")
+                # model_root = os.path.join(CONF.PATH.OUTPUT, self.stamp)
                 # torch.save(self.model.state_dict(), os.path.join(model_root, "model_last.pth"))
 
                 # update lr scheduler
@@ -309,10 +308,10 @@ class Solver():
         # change dataloader
         dataloader = dataloader if phase == "train" else tqdm(dataloader)
 
-        # Empty cuda cache for pointgroup
-        torch.cuda.empty_cache()
  
         for data_dict in dataloader:
+            # Empty cuda cache for pointgroup
+            torch.cuda.empty_cache()
             # move not to cuda, because pointgroup does it already
             # for key in data_dict:
             #     data_dict[key] = data_dict[key].cuda()

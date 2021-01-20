@@ -115,8 +115,8 @@ def func(args):
         "train": train_dataloader,
         "val": val_dataloader
     }
-    #solver, num_params, root = get_solver(args, dataloader)
-    #solver(args.epoch, args.verbose)
+    solver, num_params, root = get_solver(args, dataloader)
+    solver(args.epoch, args.verbose)
 
     input_channels = int(args.use_multiview) * 128 + int(args.use_normal) * 3 + int(args.use_color) * 3 + int(not args.no_height)
     model = RefNet(
@@ -135,13 +135,15 @@ def func(args):
     # sample = train_dataset[0]
     sample = next(iter(train_dataloader))
     # sample = train_dataset[0]
-    sample['epoch'] = 129
+    sample['epoch'] = 0
     sample['lang_feat'] = sample['lang_feat'].cuda()
     sample['lang_len'] = sample['lang_len']
     ret = model(sample)
     loss = get_loss(ret, args)
-    print(loss)
+    
     ret['loss'].backward()
+    print(loss)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
