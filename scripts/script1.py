@@ -102,7 +102,7 @@ def get_scanrefer(scanrefer_train, scanrefer_val, num_scenes=-1):
 
 def func(args):
     # dataset
-    scanrefer_train, scanrefer_val, all_scene_list = get_scanrefer(SCANREFER_TRAIN[:1], SCANREFER_VAL[:1], args.num_scenes)
+    scanrefer_train, scanrefer_val, all_scene_list = get_scanrefer(SCANREFER_TRAIN, SCANREFER_VAL, args.num_scenes)
     scanrefer = {
         "train": scanrefer_train,
         "val": scanrefer_val
@@ -150,12 +150,12 @@ if __name__ == "__main__":
     parser.add_argument("--tag", type=str, help="tag for the training, e.g. cuda_wl", default="")
     parser.add_argument("--gpu", type=str, help="gpu", default="0")
     parser.add_argument("--batch_size", type=int, help="batch size", default=1)
-    parser.add_argument("--epoch", type=int, help="number of epochs", default=20)
+    parser.add_argument("--epoch", type=int, help="number of epochs", default=500)
     parser.add_argument("--verbose", type=int, help="iterations of showing verbose", default=10)
-    parser.add_argument("--val_step", type=int, help="iterations of validating", default=5000)
+    parser.add_argument("--val_step", type=int, help="iterations of validating", default=2000)
     parser.add_argument("--lr", type=float, help="learning rate", default=1e-3)
     parser.add_argument("--wd", type=float, help="weight decay", default=1e-5)
-    parser.add_argument("--num_points", type=int, default=2000, help="Point Number [default: 40000]")
+    parser.add_argument("--num_points", type=int, default=10000, help="Point Number [default: 40000]")
     parser.add_argument("--num_proposals", type=int, default=256, help="Proposal number [default: 256]")
     parser.add_argument("--num_scenes", type=int, default=-1, help="Number of scenes [default: -1]")
     parser.add_argument("--seed", type=int, default=42, help="random seed")
