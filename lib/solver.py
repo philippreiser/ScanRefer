@@ -318,6 +318,7 @@ class Solver():
 
             # only lang_feat has to be moved to cuda
             data_dict['lang_feat'] = data_dict['lang_feat'].cuda()
+            data_dict['object_cat'] = data_dict['object_cat'].cuda()
             # initialize the running loss
             self._running_log = {
                 # loss

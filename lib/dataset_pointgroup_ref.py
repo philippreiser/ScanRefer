@@ -173,12 +173,14 @@ class ScannetReferencePointGroupDataset(Dataset):
         lang_len = torch.from_numpy(np.array(lang_len).astype(np.int64))[None]
         ### voxelize
         voxel_locs, p2v_map, v2p_map = pointgroup_ops.voxelization_idx(locs, self.batch_size, self.mode)
+        object_cat = self.raw2label[object_name] if object_name in self.raw2label else 17
+        object_cat = torch.from_numpy(np.array(object_cat).astype(np.int64))[None]
         load_time = torch.from_numpy(np.array(time.time() - start))[None]
         return {'locs': locs, 'locs_float': locs_float, 'voxel_locs': voxel_locs, 'p2v_map': p2v_map, 'v2p_map': v2p_map,
                 'feats': feats, 'labels': labels, 'instance_labels': instance_labels, 'spatial_shape': spatial_shape,
                 'instance_info': instance_infos, 'instance_pointnum': instance_pointnum, 'offsets': batch_offsets, 
                 "lang_feat":lang_feat, "lang_len": lang_len,
-                'object_id': object_id, "load_time": load_time
+                'object_id': object_id, "load_time": load_time, "object_cat": object_cat
                 }
 
 
