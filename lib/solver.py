@@ -348,8 +348,8 @@ class Solver():
                 data_dict = self._forward(data_dict)
                 self._compute_loss(data_dict)
                 self.log[phase]["forward"].append(time.time() - start)
-                print("phase: ", phase)
-                print("Epoch: ", epoch_id," Loss: ", data_dict['loss'])
+                #print("phase: ", phase)
+                #print("Epoch: ", epoch_id," Loss: ", data_dict['loss'])
                 # backward
                 if phase == "train":
                     start = time.time()

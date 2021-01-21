@@ -131,6 +131,7 @@ class ScannetReferencePointGroupDataset(Dataset):
         label, instance_label = semantic_labels, instance_labels
         rgb = pcl_color
         ### jitter / flip x / rotation
+        # TODO: Data augmentation
         xyz_middle = self.dataAugment(xyz_origin, True, True, True)
 
         ### scale
