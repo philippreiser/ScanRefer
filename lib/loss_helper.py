@@ -235,8 +235,9 @@ def compute_reference_loss(data_dict, config):
     # TODO: we assume the point_ids are assigned based on their order in gt_instances 
     #       we also assume that these ids match with the point_ids from PG
     correct_indices = (torch.arange(len(gt_instances))[gt_instances==target_inst_id]).cuda()
-
-    nSamples = preds_instances.shape[0]
+    #TODO: If batchsize>1 wont work
+    # nSamples should be number of points that are asigned to a clusters in one scene
+    nSamples = preds_instances.shape[0] 
     numbSamplePerCluster = np.zeros(num_proposals)
 
     for i, pred_instance in enumerate(preds_instances):
@@ -251,11 +252,10 @@ def compute_reference_loss(data_dict, config):
             labels[index, cluster_id] += 1
 
     # union of points in real instance and respective pred instance
-    numbSamplePerCluster += correct_indices
+    numbSamplePerCluster += len(correct_indices)-labels[0]
     # normalize intersection with union (IoU)
-    labels = labels/numbSamplePerCluster[:, np.newaxis]
-    # newaxis to have a column vec instead of a row vector - to work with next step
-    max_elem = labels.max(axis=1)[:, np.newaxis]
+    labels = labels/numbSamplePerCluster
+    max_elem = labels.max()
     # convert to one-hot-matrix with 0 on max per row
     labels = np.floor(labels/max_elem)
     cluster_labels = torch.FloatTensor(labels).cuda()
