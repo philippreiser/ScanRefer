@@ -8,7 +8,7 @@ class MatchModule(nn.Module):
         self.num_proposals = num_proposals
         self.lang_size = lang_size
         self.hidden_size = hidden_size
-        
+
         self.fuse = nn.Sequential(
             nn.Conv1d(self.lang_size + 128, hidden_size, 1),
             nn.ReLU()
@@ -51,7 +51,7 @@ class MatchModule(nn.Module):
         features = torch.cat([features, adapted_features], dim=1)
         features = torch.cat([features, lang_feat], dim=-1) # batch_size, num_proposals, 128 + lang_size
         features = features.permute(0, 2, 1).contiguous() # batch_size, 128 + lang_size, num_proposals
-
+        
         # fuse features
         features = self.fuse(features) # batch_size, hidden_size, num_proposals
         
