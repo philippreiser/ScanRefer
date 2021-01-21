@@ -225,6 +225,7 @@ def compute_reference_loss(data_dict, config):
     
     preds_segmentation = data_dict['semantic_preds'] # (B*N), long
     # dim 1 for cluster_id, dim 2 for corresponding point idxs in N
+    # sumNPoint: Total number of points belonging to some cluster
     preds_instances = data_dict['proposals_idx'] # (B*sumNPoint, 2), int, := cluster_id | point_id
     # compute the iou score for all predictd positive ref
     batch_size, num_proposals = cluster_preds.shape
@@ -233,7 +234,7 @@ def compute_reference_loss(data_dict, config):
     # gt_instances contains for each of the points their corresponding cluster_id
     # TODO: we assume the point_ids are assigned based on their order in gt_instances 
     #       we also assume that these ids match with the point_ids from PG
-    correct_indices = np.arange(len(gt_instances))[gt_instances==target_inst_id]
+    correct_indices = (torch.arange(len(gt_instances))[gt_instances==target_inst_id]).cuda()
 
     nSamples = preds_instances.shape[0]
     numbSamplePerCluster = np.zeros(num_proposals)
@@ -259,7 +260,7 @@ def compute_reference_loss(data_dict, config):
     labels = np.floor(labels/max_elem)
     cluster_labels = torch.FloatTensor(labels).cuda()
 
-    # TODO: check if cluster_is starts with 0
+    # TODO: check if cluster_id starts with 0
 
     # reference loss
     criterion = SoftmaxRankingLoss()

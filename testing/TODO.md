@@ -9,6 +9,7 @@
 - [ ] Start Training on one sample
 
 ### TODO (20.01): Evaluation
+- [ ] Fix "RuntimeError: CUDA out of memory" in epoch 2
 - [ ] Metrics as in ScanRefer paper
 - [ ] Start with Presentation
 

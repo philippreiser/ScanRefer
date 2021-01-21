@@ -508,12 +508,17 @@ def model_fn_decorator(test=False):
             score_loss = score_loss.mean()
 
             loss_out['score_loss'] = (score_loss, gt_ious.shape[0])
+            print("Score Loss: ", loss_out['score_loss'])
 
         '''total loss'''
         loss = cfg.loss_weight[0] * semantic_loss + cfg.loss_weight[1] * offset_norm_loss + cfg.loss_weight[2] * offset_dir_loss
         if(epoch > cfg.prepare_epochs):
             loss += (cfg.loss_weight[3] * score_loss)
-
+        print("Semantic loss: ", semantic_loss.item())
+        print("Offset norm loss: ", offset_norm_loss.item())
+        print("Offset dir loss: ", offset_dir_loss.item())
+        print("Loss: ", loss.item())
+        print("------------")
         return loss, loss_out, infos
 
 
