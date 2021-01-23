@@ -79,7 +79,7 @@ def get_eval(data_dict, config, reference, use_lang_classifier=False, use_oracle
     #cluster_preds = pred
     #cluster_labels *= label_masks
 
-    cluster_preds = data_dict["cluster_ref"] # (B, num_proposal)
+    cluster_preds = data_dict["cluster_ref"] # (B*num_proposal)
     cluster_labels = data_dict["cluster_labels"].float()
     
     # compute classification scores
@@ -174,11 +174,11 @@ def get_eval(data_dict, config, reference, use_lang_classifier=False, use_oracle
 
     ### More Info (incl. comments) ###
     # in compute_reference_loss in loss_helper.py (same process)
-    gt_instances = data_dict['instance_labels'] # (B, N)
+    start_of_samples = data_dict['offsets'] # (B)
+    gt_instances = data_dict['instance_labels'] # (B*N)
     target_inst_id = data_dict['object_id'] # (B)
-    preds_instances = data_dict['proposals_idx'] # (B, sumNPoint, 2)
-
-    batch_size, num_proposals = cluster_preds.shape
+    preds_instances = data_dict['proposals_idx'] # (B*sumNPoint, 2)
+    batch_size, num_proposals = len(start_of_samples), len(cluster_preds[:start_of_samples[1]])
     # for every batch
     for i in range(batch_size):
         # compute the iou
@@ -200,11 +200,14 @@ def get_eval(data_dict, config, reference, use_lang_classifier=False, use_oracle
         #pred_bbox = get_3d_box(pred_obb[3:6], pred_obb[6], pred_obb[0:3])
         #gt_bbox = get_3d_box(gt_obb[3:6], gt_obb[6], gt_obb[0:3])
 
+        start = start_of_samples[i]
+        end = start_of_samples[i+1]
+
         iou = torch.zeros(num_proposals)
-        correct_indices = (torch.arange(len(gt_instances[i]))[gt_instances[i]==target_inst_id[i]]).cuda()
+        correct_indices = (torch.arange(len(gt_instances[start:end]))[gt_instances[start:end]==target_inst_id[i]]).cuda()
         numbSamplePerCluster = torch.zeros(num_proposals)
 
-        for j, point_in_cluster in enumerate(preds_instances[i]):
+        for j, point_in_cluster in enumerate(preds_instances[start:end]):
             cluster_id, member_point = point_in_cluster
             numbSamplePerCluster[cluster_id] += 1
             if int(member_point) in correct_indices: 
