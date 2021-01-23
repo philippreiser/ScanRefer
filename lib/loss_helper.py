@@ -257,7 +257,12 @@ def compute_reference_loss(data_dict, config):
     labels = labels/numbSamplePerCluster
     max_elem = labels.max()
     # convert to one-hot-matrix with 0 on max per row
-    labels = np.floor(labels/max_elem)
+    if max_elem != 0:
+        labels = np.floor(labels/max_elem)
+    else:
+        labels = np.zeros(labels.shape)
+        labels[0, target_inst_id] = 1 # If no IoU with GT 
+        # use index 0 because batch_size=1
     cluster_labels = torch.FloatTensor(labels).cuda()
 
     # TODO: check if cluster_id starts with 0
@@ -355,6 +360,7 @@ def get_loss(data_dict, config, detection=True, reference=True, use_lang_classif
     # only the last two losses are needed
     # add the loss calculated during the RefNet.forward by calling pointgroup.model_fn
     # TODO: weight set to 0.8 for now (so that weights sum up to 1)
+    # default: 0.1, 0.1, 0.8
     loss = 0.1*data_dict["ref_loss"] + 0.1*data_dict["lang_loss"] + 0.8 * data_dict['pg_loss']
     loss *= 10 # amplify
 
