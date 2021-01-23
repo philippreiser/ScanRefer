@@ -210,59 +210,70 @@ def compute_reference_loss(data_dict, config):
     # segmentation loss. (+ the same class can appear more than once)
     # hence we want to compare each cluster with the real cluster to find 
     # the best cluster. 
-    # NOTE: PG doesn't use an additional batch size dim (labels were also adjusted to that)
     gt_instances = data_dict['instance_labels'] # (B*N)
-    target_inst_id = data_dict['object_id']
+    target_inst_id = data_dict['object_id'] # (B)
+    # as no extra batch_dim exists this gives the index of a next sample
+    start_of_samples = data_dict['offset'] # (B)
 
     # PointGroup: 
-    # TODO: 
-    # QUESTION: will each predicted point remain in one cluster? 
-    # IF SO: I don't need to do IoU calculations I simply have to give the CELoss
-    #        the correct predcited localization confidences.
-    #        Find out more about the localization confidences + how the targets are 
-    #        made for segm. and language.
     # NOTE: in PG clustering alg. only points of the same class can be in one cluster 
     
     preds_segmentation = data_dict['semantic_preds'] # (B*N), long
     # dim 1 for cluster_id, dim 2 for corresponding point idxs in N
-    # sumNPoint: Total number of points belonging to some cluster
-    preds_instances = data_dict['proposals_idx'] # (B*sumNPoint, 2), int, := cluster_id | point_id
-    # compute the iou score for all predictd positive ref
-    batch_size, num_proposals = cluster_preds.shape
-    labels = np.zeros((batch_size, num_proposals))
+    # sumNPoint: Total number of points belonging to some cluster 
+    #            Some points don't get assigned a cluster
+    preds_instances = data_dict['proposals_idx'] # (B*sumNPoint, 2)
+    # to get the num_proposals we look at the length of the first sample in cluster_preds
+    batch_size, num_proposals = len(start_of_samples), len(cluster_preds[:start_of_samples[1]])
+    labels = torch.zeros(batch_size, num_proposals)
 
-    # gt_instances contains for each of the points their corresponding cluster_id
-    # TODO: we assume the point_ids are assigned based on their order in gt_instances 
-    #       we also assume that these ids match with the point_ids from PG
-    correct_indices = (torch.arange(len(gt_instances))[gt_instances==target_inst_id]).cuda()
-    #TODO: If batchsize>1 wont work
-    # nSamples should be number of points that are asigned to a clusters in one scene
-    nSamples = preds_instances.shape[0] 
-    numbSamplePerCluster = np.zeros(num_proposals)
+    # TODO: vectorize - instead of double iterative approach
+    # for each sample in batch
+    for i in range(batch_size):
+        start = start_of_samples[i]
+        end = start_of_samples[i+1]
+        # gt_instances contains for each of the points their corresponding cluster_id
+        # NOTE: we assume the point_ids are assigned based on their order in gt_instances 
+        #       we also assume that these ids match with the point_ids from PG
+        correct_indices = (
+            torch.arange(
+                len(gt_instances[start:end]))[
+                gt_instances[start:end]==target_inst_id[i]
+                ]
+            ).cuda()
+        # nSamples is the number of points that are asigned to some clusters in one scene
+        # NOTE: only works with an extra batch_size dimension
+        #nSamples = preds_instances[i].shape[0] 
+        numbSamplePerCluster = torch.zeros(num_proposals)
 
-    for i, pred_instance in enumerate(preds_instances):
-        cluster_id, member_point = pred_instance
-        numbSamplePerCluster[cluster_id] += 1
-        if int(member_point) in correct_indices: 
-            # in preds_instances for every point there is one entry (one assigned cluster_id)
-            # I want all of them to count for one sample (the underlying scan)
-            # the cluster_id with the most counts will be the true label.
-            # counts are defined as points being in the correct_indices (-> IoU)
-            index = int(np.floor(i/nSamples))
-            labels[index, cluster_id] += 1
+        for j, point_in_cluster in enumerate(preds_instances[start:end]):
+            cluster_id, member_point = point_in_cluster
+            numbSamplePerCluster[cluster_id] += 1
+            if int(member_point) in correct_indices: 
+                # in preds_instances for every point there is one entry (one assigned cluster_id)
+                # I want all of them to count for one sample (the underlying scan)
+                # the cluster_id with the most counts will be the true label.
+                # counts are defined as points being in the correct_indices (-> IoU)
+                # use index instead of i if no batch_size, but all batches directly concatenated 
+                # = what we first assumed would be how PG trains on multiple batches.
+                #index = int(np.floor(j/nSamples))
+                labels[i, cluster_id] += 1
 
-    # union of points in real instance and respective pred instance
-    numbSamplePerCluster += len(correct_indices)-labels[0]
-    # normalize intersection with union (IoU)
-    labels = labels/numbSamplePerCluster
-    max_elem = labels.max()
-    # convert to one-hot-matrix with 0 on max per row
-    if max_elem != 0:
-        labels = np.floor(labels/max_elem)
-    else:
-        labels = np.zeros(labels.shape)
-        labels[0, target_inst_id] = 1 # If no IoU with GT 
-        # use index 0 because batch_size=1
+        # union of points in real instance (gt) and respective pred instance
+        # - labels to not have the intersection count double
+        numbSamplePerCluster += len(correct_indices)-labels[i]
+        # normalize intersection with union => IoU score now
+        labels[i] = labels[i]/numbSamplePerCluster
+        max_elem = labels[i].max()
+        # convert to one-hot-matrix with 0 on max per row
+        if max_elem != 0:
+            labels[i] = torch.floor(labels[i]/max_elem)
+        else:
+            labels[i] = torch.zeros(len(labels[i])) # reset all counts
+            # TODO: Sensible? Decoupling not completely given anymore! 
+            #       All ones? (All zeros leads to low loss, because most preds are 0 --> we want loss increase)
+            labels[i, target_inst_id] = 1 # If no IoU with GT 
+
     cluster_labels = torch.FloatTensor(labels).cuda()
 
     # TODO: check if cluster_id starts with 0
@@ -334,7 +345,7 @@ def get_loss(data_dict, config, detection=True, reference=True, use_lang_classif
     if reference and data_dict['epoch'] > cfg.prepare_epochs:
         # Reference loss
         ref_loss, _, cluster_labels = compute_reference_loss(data_dict, config)
-        #data_dict["cluster_labels"] = cluster_labels
+        data_dict["cluster_labels"] = cluster_labels
         data_dict["ref_loss"] = ref_loss
     else:
         # # Reference loss
@@ -346,6 +357,7 @@ def get_loss(data_dict, config, detection=True, reference=True, use_lang_classif
 
         # store
         data_dict["ref_loss"] = torch.zeros(1)[0].cuda()
+        data_dict["cluster_labels"] = torch.zeros(1)[0].cuda()
 
     if reference and use_lang_classifier and data_dict['epoch'] > cfg.prepare_epochs:
         data_dict["lang_loss"] = compute_lang_classification_loss(data_dict)

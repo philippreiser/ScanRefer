@@ -120,8 +120,6 @@ class RefNet(nn.Module):
         #             "lang_emb" (comes from self.lang)
 
         # in PointGroup train.py/train_epoch: (data_dict has to be batch)
-        # loss, _, visual_dict, meter_dict = model_fn(batch, model, epoch)
-        # TODO: make sure correct data_dict is given to this forward
         # data_dict needs to conatin: 
         #       - coords = batch['locs'].cuda()                          # (N, 1 + 3), long, cuda, dimension 0 for batch_idx
         #       - voxel_coords = batch['voxel_locs'].cuda()              # (M, 1 + 3), long, cuda
@@ -137,8 +135,6 @@ class RefNet(nn.Module):
         #       - spatial_shape = batch['spatial_shape']
         #       - EXTRA: epoch = batch['epoch']
 
-        # loss, visual_dict, meter_dict not necessary here
-        # TODO: forwarding to downstream app?
         model_fn = model_fn_decorator()
         loss, preds, _, _ = model_fn(data_dict, self.pointgroup, data_dict['epoch'], self.batch_size) # data_dict['epoch'] = 129
 
@@ -150,7 +146,6 @@ class RefNet(nn.Module):
             data_dict['semantic_preds'] = preds['semantic_preds']
             data_dict['proposals_idx'], _ = preds['proposals']
             data_dict['score_feats'] = preds['score_feats']
-            # TODO: Check why m = 16 in default config?
             data_dict['aggregated_vote_features'] = preds['score_feats']
 
             #######################################
