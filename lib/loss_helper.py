@@ -252,7 +252,7 @@ def compute_reference_loss(data_dict, config):
         # union of points in real instance (gt) and respective pred instance
         # - labels to not have the intersection count double
         numbSamplePerCluster += len(correct_indices)-labels[i]
-        # normalize intersection with union (IoU)
+        # normalize intersection with union => IoU score now
         labels[i] = labels[i]/numbSamplePerCluster
         max_elem = labels[i].max()
         # convert to one-hot-matrix with 0 on max per row
@@ -335,7 +335,7 @@ def get_loss(data_dict, config, detection=True, reference=True, use_lang_classif
     if reference and data_dict['epoch'] > cfg.prepare_epochs:
         # Reference loss
         ref_loss, _, cluster_labels = compute_reference_loss(data_dict, config)
-        #data_dict["cluster_labels"] = cluster_labels
+        data_dict["cluster_labels"] = cluster_labels
         data_dict["ref_loss"] = ref_loss
     else:
         # # Reference loss
@@ -347,6 +347,7 @@ def get_loss(data_dict, config, detection=True, reference=True, use_lang_classif
 
         # store
         data_dict["ref_loss"] = torch.zeros(1)[0].cuda()
+        data_dict["cluster_labels"] = torch.zeros(1)[0].cuda()
 
     if reference and use_lang_classifier and data_dict['epoch'] > cfg.prepare_epochs:
         data_dict["lang_loss"] = compute_lang_classification_loss(data_dict)

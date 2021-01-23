@@ -57,28 +57,30 @@ def get_eval(data_dict, config, reference, use_lang_classifier=False, use_oracle
 
     batch_size, num_words, _ = data_dict["lang_feat"].shape
 
-
-    objectness_preds_batch = torch.argmax(data_dict['objectness_scores'], 2).long()
-    objectness_labels_batch = data_dict['objectness_label'].long()
+    #objectness_preds_batch = torch.argmax(data_dict['objectness_scores'], 2).long()
+    #objectness_labels_batch = data_dict['objectness_label'].long()
 
     if post_processing:
         _ = parse_predictions(data_dict, post_processing)
         nms_masks = torch.LongTensor(data_dict['pred_mask']).cuda()
 
         # construct valid mask
-        pred_masks = (nms_masks * objectness_preds_batch == 1).float()
-        label_masks = (objectness_labels_batch == 1).float()
+        #pred_masks = (nms_masks * objectness_preds_batch == 1).float()
+        #label_masks = (objectness_labels_batch == 1).float()
     else:
         # construct valid mask
-        pred_masks = (objectness_preds_batch == 1).float()
-        label_masks = (objectness_labels_batch == 1).float()
+        #pred_masks = (objectness_preds_batch == 1).float()
+        #label_masks = (objectness_labels_batch == 1).float()
+        pass
 
-    cluster_preds = torch.argmax(data_dict["cluster_ref"] * pred_masks, 1).long().unsqueeze(1).repeat(1, pred_masks.shape[1])
-    preds = torch.zeros(pred_masks.shape).cuda()
-    preds = preds.scatter_(1, cluster_preds, 1)
-    cluster_preds = preds
+    #cluster_preds = torch.argmax(data_dict["cluster_ref"] * pred_masks, 1).long().unsqueeze(1).repeat(1, pred_masks.shape[1])
+    #preds = torch.zeros(pred_masks.shape).cuda()
+    #preds = preds.scatter_(1, cluster_preds, 1)
+    #cluster_preds = pred
+    #cluster_labels *= label_masks
+
+    cluster_preds = data_dict["cluster_ref"] # (B, num_proposal)
     cluster_labels = data_dict["cluster_labels"].float()
-    cluster_labels *= label_masks
     
     # compute classification scores
     corrects = torch.sum((cluster_preds == 1) * (cluster_labels == 1), dim=1).float()
@@ -93,7 +95,8 @@ def get_eval(data_dict, config, reference, use_lang_classifier=False, use_oracle
         pred_ref = torch.argmax(data_dict["cluster_labels"], 1) # (B,)
         # store the calibrated predictions and masks
         data_dict['cluster_ref'] = data_dict["cluster_labels"]
-    if use_cat_rand:
+    # TODO: remove 'and False' in case this could also be of use without bboxes
+    if use_cat_rand and False: 
         cluster_preds = torch.zeros(cluster_labels.shape).cuda()
         for i in range(cluster_preds.shape[0]):
             num_bbox = data_dict["num_bbox"][i]
@@ -113,11 +116,16 @@ def get_eval(data_dict, config, reference, use_lang_classifier=False, use_oracle
         # store the calibrated predictions and masks
         data_dict['cluster_ref'] = cluster_preds
     else:
+        # TODO: remove (and calculate somewhere) pred_masks=1 
+        #       in case we also need to construct a mask to filter our predictions
+        pred_masks = 1
         pred_ref = torch.argmax(data_dict['cluster_ref'] * pred_masks, 1) # (B,)
+        # TODO: uncomment for filtering
         # store the calibrated predictions and masks
-        data_dict['cluster_ref'] = data_dict['cluster_ref'] * pred_masks
+        #data_dict['cluster_ref'] = data_dict['cluster_ref'] * pred_masks
 
-    if use_oracle:
+    # TODO: for now we don't use oracle (undo: remove 'and False')
+    if use_oracle and False:
         pred_center = data_dict['center_label'] # (B,MAX_NUM_OBJ,3)
         pred_heading_class = data_dict['heading_class_label'] # B,K2
         pred_heading_residual = data_dict['heading_residual_label'] # B,K2
@@ -130,7 +138,8 @@ def get_eval(data_dict, config, reference, use_lang_classifier=False, use_oracle
         pred_heading_residual = torch.gather(pred_heading_residual, 1, data_dict["object_assignment"]).unsqueeze(-1)
         pred_size_class = torch.gather(pred_size_class, 1, data_dict["object_assignment"])
         pred_size_residual = torch.gather(pred_size_residual, 1, data_dict["object_assignment"].unsqueeze(2).repeat(1, 1, 3))
-    else:
+    # TODO: for now we don't use this either (undo: elif -> else)
+    elif False:
         pred_center = data_dict['center'] # (B,K,3)
         pred_heading_class = torch.argmax(data_dict['heading_scores'], -1) # B,num_proposal
         pred_heading_residual = torch.gather(data_dict['heading_residuals'], 2, pred_heading_class.unsqueeze(-1)) # B,num_proposal,1
@@ -142,60 +151,84 @@ def get_eval(data_dict, config, reference, use_lang_classifier=False, use_oracle
         pred_size_residual = pred_size_residual.squeeze(2) # B,num_proposal,3
 
     # store
-    data_dict["pred_mask"] = pred_masks
-    data_dict["label_mask"] = label_masks
-    data_dict['pred_center'] = pred_center
-    data_dict['pred_heading_class'] = pred_heading_class
-    data_dict['pred_heading_residual'] = pred_heading_residual
-    data_dict['pred_size_class'] = pred_size_class
-    data_dict['pred_size_residual'] = pred_size_residual
+    #data_dict["pred_mask"] = pred_masks
+    #data_dict["label_mask"] = label_masks
+    #data_dict['pred_center'] = pred_center
+    #data_dict['pred_heading_class'] = pred_heading_class
+    #data_dict['pred_heading_residual'] = pred_heading_residual
+    #data_dict['pred_size_class'] = pred_size_class
+    #data_dict['pred_size_residual'] = pred_size_residual
 
-    gt_ref = torch.argmax(data_dict["ref_box_label"], 1)
-    gt_center = data_dict['center_label'] # (B,MAX_NUM_OBJ,3)
-    gt_heading_class = data_dict['heading_class_label'] # B,K2
-    gt_heading_residual = data_dict['heading_residual_label'] # B,K2
-    gt_size_class = data_dict['size_class_label'] # B,K2
-    gt_size_residual = data_dict['size_residual_label'] # B,K2,3
+    #gt_ref = torch.argmax(data_dict["ref_box_label"], 1)
+    #gt_center = data_dict['center_label'] # (B,MAX_NUM_OBJ,3)
+    #gt_heading_class = data_dict['heading_class_label'] # B,K2
+    #gt_heading_residual = data_dict['heading_residual_label'] # B,K2
+    #gt_size_class = data_dict['size_class_label'] # B,K2
+    #gt_size_residual = data_dict['size_residual_label'] # B,K2,3
 
     ious = []
-    multiple = []
+    #multiple = []
     others = []
     pred_bboxes = []
     gt_bboxes = []
-    for i in range(pred_ref.shape[0]):
+
+    ### More Info (incl. comments) ###
+    # in compute_reference_loss in loss_helper.py (same process)
+    gt_instances = data_dict['instance_labels'] # (B, N)
+    target_inst_id = data_dict['object_id'] # (B)
+    preds_instances = data_dict['proposals_idx'] # (B, sumNPoint, 2)
+
+    batch_size, num_proposals = cluster_preds.shape
+    # for every batch
+    for i in range(batch_size):
         # compute the iou
-        pred_ref_idx, gt_ref_idx = pred_ref[i], gt_ref[i]
-        pred_obb = config.param2obb(
-            pred_center[i, pred_ref_idx, 0:3].detach().cpu().numpy(), 
-            pred_heading_class[i, pred_ref_idx].detach().cpu().numpy(), 
-            pred_heading_residual[i, pred_ref_idx].detach().cpu().numpy(),
-            pred_size_class[i, pred_ref_idx].detach().cpu().numpy(), 
-            pred_size_residual[i, pred_ref_idx].detach().cpu().numpy()
-        )
-        gt_obb = config.param2obb(
-            gt_center[i, gt_ref_idx, 0:3].detach().cpu().numpy(), 
-            gt_heading_class[i, gt_ref_idx].detach().cpu().numpy(), 
-            gt_heading_residual[i, gt_ref_idx].detach().cpu().numpy(),
-            gt_size_class[i, gt_ref_idx].detach().cpu().numpy(), 
-            gt_size_residual[i, gt_ref_idx].detach().cpu().numpy()
-        )
-        pred_bbox = get_3d_box(pred_obb[3:6], pred_obb[6], pred_obb[0:3])
-        gt_bbox = get_3d_box(gt_obb[3:6], gt_obb[6], gt_obb[0:3])
-        iou = eval_ref_one_sample(pred_bbox, gt_bbox)
+        #pred_ref_idx, gt_ref_idx = pred_ref[i], gt_ref[i]
+        #pred_obb = config.param2obb(
+        #    pred_center[i, pred_ref_idx, 0:3].detach().cpu().numpy(), 
+        #    pred_heading_class[i, pred_ref_idx].detach().cpu().numpy(), 
+        #    pred_heading_residual[i, pred_ref_idx].detach().cpu().numpy(),
+        #    pred_size_class[i, pred_ref_idx].detach().cpu().numpy(), 
+        #    pred_size_residual[i, pred_ref_idx].detach().cpu().numpy()
+        #3)
+        #gt_obb = config.param2obb(
+        #    gt_center[i, gt_ref_idx, 0:3].detach().cpu().numpy(), 
+        #    gt_heading_class[i, gt_ref_idx].detach().cpu().numpy(), 
+        #    gt_heading_residual[i, gt_ref_idx].detach().cpu().numpy(),
+        #    gt_size_class[i, gt_ref_idx].detach().cpu().numpy(), 
+        #    gt_size_residual[i, gt_ref_idx].detach().cpu().numpy()
+        #)
+        #pred_bbox = get_3d_box(pred_obb[3:6], pred_obb[6], pred_obb[0:3])
+        #gt_bbox = get_3d_box(gt_obb[3:6], gt_obb[6], gt_obb[0:3])
+
+        iou = torch.zeros(num_proposals)
+        correct_indices = (torch.arange(len(gt_instances[i]))[gt_instances[i]==target_inst_id[i]]).cuda()
+        numbSamplePerCluster = torch.zeros(num_proposals)
+
+        for j, point_in_cluster in enumerate(preds_instances[i]):
+            cluster_id, member_point = point_in_cluster
+            numbSamplePerCluster[cluster_id] += 1
+            if int(member_point) in correct_indices: 
+                iou[cluster_id] += 1
+
+        # union of points in real instance (gt) and respective pred instance
+        # - iou to not have the intersection count double
+        numbSamplePerCluster += len(correct_indices)-iou
+        # normalize intersection with union => IoU score now
+        iou = iou/numbSamplePerCluster
         ious.append(iou)
 
         # NOTE: get_3d_box() will return problematic bboxes
-        pred_bbox = construct_bbox_corners(pred_obb[0:3], pred_obb[3:6])
-        gt_bbox = construct_bbox_corners(gt_obb[0:3], gt_obb[3:6])
-        pred_bboxes.append(pred_bbox)
-        gt_bboxes.append(gt_bbox)
+        #pred_bbox = construct_bbox_corners(pred_obb[0:3], pred_obb[3:6])
+        #gt_bbox = construct_bbox_corners(gt_obb[0:3], gt_obb[3:6])
+        #pred_bboxes.append(pred_bbox)
+        #gt_bboxes.append(gt_bbox)
 
         # construct the multiple mask
-        multiple.append(data_dict["unique_multiple"][i].item())
+        #multiple.append(data_dict["unique_multiple"][i].item())
 
         # construct the others mask
-        flag = 1 if data_dict["object_cat"][i] == 17 else 0
-        others.append(flag)
+        #flag = 1 if data_dict["object_cat"][i] == 17 else 0
+        #others.append(flag)
 
     # lang
     if reference and use_lang_classifier:
@@ -207,20 +240,21 @@ def get_eval(data_dict, config, reference, use_lang_classifier=False, use_oracle
     data_dict["ref_iou"] = ious
     data_dict["ref_iou_rate_0.25"] = np.array(ious)[np.array(ious) >= 0.25].shape[0] / np.array(ious).shape[0]
     data_dict["ref_iou_rate_0.5"] = np.array(ious)[np.array(ious) >= 0.5].shape[0] / np.array(ious).shape[0]
-    data_dict["ref_multiple_mask"] = multiple
-    data_dict["ref_others_mask"] = others
-    data_dict["pred_bboxes"] = pred_bboxes
-    data_dict["gt_bboxes"] = gt_bboxes
+    #data_dict["ref_multiple_mask"] = multiple
+    #data_dict["ref_others_mask"] = others
+    #data_dict["pred_bboxes"] = pred_bboxes
+    #data_dict["gt_bboxes"] = gt_bboxes
 
     # --------------------------------------------
     # Some other statistics
-    obj_pred_val = torch.argmax(data_dict['objectness_scores'], 2) # B,K
-    obj_acc = torch.sum((obj_pred_val==data_dict['objectness_label'].long()).float()*data_dict['objectness_mask'])/(torch.sum(data_dict['objectness_mask'])+1e-6)
-    data_dict['obj_acc'] = obj_acc
+    #obj_pred_val = torch.argmax(data_dict['objectness_scores'], 2) # B,K
+    #obj_acc = torch.sum((obj_pred_val==data_dict['objectness_label'].long()).float()*data_dict['objectness_mask'])/(torch.sum(data_dict['objectness_mask'])+1e-6)
+    #data_dict['obj_acc'] = obj_acc
     # detection semantic classification
-    sem_cls_label = torch.gather(data_dict['sem_cls_label'], 1, data_dict['object_assignment']) # select (B,K) from (B,K2)
-    sem_cls_pred = data_dict['sem_cls_scores'].argmax(-1) # (B,K)
-    sem_match = (sem_cls_label == sem_cls_pred).float()
-    data_dict["sem_acc"] = (sem_match * data_dict["pred_mask"]).sum() / data_dict["pred_mask"].sum()
+    #sem_cls_label = torch.gather(data_dict['sem_cls_label'], 1, data_dict['object_assignment']) # select (B,K) from (B,K2)
+    #sem_cls_pred = data_dict['sem_cls_scores'].argmax(-1) # (B,K)
+    #sem_match = (sem_cls_label == sem_cls_pred).float()
+    # TODO: we may include sem_acc (structure probably only has to be slightly changed)
+    #data_dict["sem_acc"] = (sem_match * data_dict["pred_mask"]).sum() / data_dict["pred_mask"].sum()
 
     return data_dict
