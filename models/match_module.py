@@ -35,6 +35,7 @@ class MatchModule(nn.Module):
 
         # unpack outputs from detection branch
         features = data_dict['aggregated_vote_features'] # batch_size, num_proposal, 128
+        proposals_idx, proposals_offset = data_dict['proposals_idx'], data_dict['proposals_offset']
         
         # PointGroup: 
         # for now no masking substitute
@@ -53,6 +54,11 @@ class MatchModule(nn.Module):
         # lang_feat         (2, 300, 128)
         # --> figure out in features where batch_id 1 ends and where batch_id 2 starts
         # --> separate cluster features of each batch
+        #TODO: pass batch size
+        for batch_idx in range(self.batch_size):
+            batch_begin_idx, batch_end_idx = b_offset[batch_idx:batch_idx+2]
+            mask = (batch_begin_idx<proposals_offset<batch_end_idx)
+            #b_offset[mask][]
         adapted_features = torch.zeros([lang_feat.shape[0], self.num_proposals-features.shape[1], features.shape[2]]).cuda()
         features = torch.cat([features, adapted_features], dim=1)
         features = torch.cat([features, lang_feat], dim=-1) # batch_size, num_proposals, 128 + lang_size

@@ -144,7 +144,7 @@ class RefNet(nn.Module):
         if not self.no_reference and (data_dict['epoch'] > cfg.prepare_epochs):
             # bridge important data for next computations
             data_dict['semantic_preds'] = preds['semantic_preds']
-            data_dict['proposals_idx'], _ = preds['proposals']
+            data_dict['proposals_idx'], data_dict['proposals_offset'] = preds['proposals']
             data_dict['score_feats'] = preds['score_feats']
             data_dict['aggregated_vote_features'] = preds['score_feats']
 
