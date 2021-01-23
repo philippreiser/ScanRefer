@@ -345,7 +345,7 @@ def model_fn_decorator(test=False):
     semantic_criterion = nn.CrossEntropyLoss(ignore_index=cfg.ignore_label).cuda()
     score_criterion = nn.BCELoss(reduction='none').cuda()
 
-    def test_model_fn(batch, model, epoch):
+    def test_model_fn(batch, model, epoch, batch_size):
         coords = batch['locs'].cuda()              # (N, 1 + 3), long, cuda, dimension 0 for batch_idx
         voxel_coords = batch['voxel_locs'].cuda()  # (M, 1 + 3), long, cuda
         p2v_map = batch['p2v_map'].cuda()          # (N), int, cuda
@@ -362,7 +362,7 @@ def model_fn_decorator(test=False):
             feats = torch.cat((feats, coords_float), 1)
         voxel_feats = pointgroup_ops.voxelization(feats, v2p_map, cfg.mode)  # (M, C), float, cuda
 
-        input_ = spconv.SparseConvTensor(voxel_feats, voxel_coords.int(), spatial_shape, cfg.batch_size)
+        input_ = spconv.SparseConvTensor(voxel_feats, voxel_coords.int(), spatial_shape, batch_size)
 
         ret = model(input_, p2v_map, coords_float, coords[:, 0].int(), batch_offsets, epoch)
         semantic_scores = ret['semantic_scores']  # (N, nClass) float32, cuda
@@ -382,7 +382,7 @@ def model_fn_decorator(test=False):
         return preds
 
 
-    def model_fn(batch, model, epoch):
+    def model_fn(batch, model, epoch, batch_size):
         ##### prepare input and forward
         # batch {'locs': locs, 'voxel_locs': voxel_locs, 'p2v_map': p2v_map, 'v2p_map': v2p_map,
         # 'locs_float': locs_float, 'feats': feats, 'labels': labels, 'instance_labels': instance_labels,
@@ -409,7 +409,7 @@ def model_fn_decorator(test=False):
             feats = torch.cat((feats, coords_float), 1)
         voxel_feats = pointgroup_ops.voxelization(feats, v2p_map, cfg.mode)  # (M, C), float, cuda
 
-        input_ = spconv.SparseConvTensor(voxel_feats, voxel_coords.int(), spatial_shape, cfg.batch_size)
+        input_ = spconv.SparseConvTensor(voxel_feats, voxel_coords.int(), spatial_shape, batch_size)
 
         ret = model(input_, p2v_map, coords_float, coords[:, 0].int(), batch_offsets, epoch)
         

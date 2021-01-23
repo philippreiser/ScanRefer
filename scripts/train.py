@@ -55,7 +55,8 @@ def get_model(args):
         num_proposal=args.num_proposals,
         use_lang_classifier=(not args.no_lang_cls),
         use_bidir=args.use_bidir,
-        no_reference=args.no_reference
+        no_reference=args.no_reference,
+        batch_size=args.batch_size
     )
 
     # trainable model

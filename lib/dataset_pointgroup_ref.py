@@ -307,7 +307,8 @@ class ScannetReferencePointGroupDataset(Dataset):
             lang_lens.append(torch.from_numpy(np.array(lang_len).astype(np.int64)))
             object_cat = self.raw2label[object_name] if object_name in self.raw2label else 17
             object_cats.append(torch.from_numpy(np.array(object_cat).astype(np.int64)))
-        
+            object_ids.append(object_id)
+
         ### merge all the scenes in the batchd (PG)
         batch_offsets = torch.tensor(batch_offsets, dtype=torch.int)  # int (B+1)
 
@@ -326,7 +327,7 @@ class ScannetReferencePointGroupDataset(Dataset):
         voxel_locs, p2v_map, v2p_map = pointgroup_ops.voxelization_idx(locs, self.batch_size, self.mode)
         
         ### SC
-        lang_feats = torch.tensor(lang_feat, dtype=torch.float32)[None, :, :] # float (B, 126, 300)
+        lang_feats = torch.cat(lang_feats, 0).reshape((self.batch_size, 126, 300)) # float (B, 126, 300)
         lang_lens = torch.tensor(lang_lens, dtype=torch.int64) # float (B, 1)
         object_cats = torch.tensor(object_cats) # float (B, )
         load_time = torch.from_numpy(np.array(time.time() - start))[None]

@@ -45,7 +45,8 @@ def get_dataloader(args, scanrefer, all_scene_list, split, config, augment, data
         use_height=(not args.no_height),
         use_color=args.use_color, 
         use_normal=args.use_normal, 
-        use_multiview=args.use_multiview
+        use_multiview=args.use_multiview,
+        batch_size=args.batch_size
     )
     # dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True)
     # dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=False, num_workers=4) # Set shuffle=True
@@ -102,7 +103,7 @@ def get_scanrefer(scanrefer_train, scanrefer_val, num_scenes=-1):
 
 def func(args):
     # dataset
-    scanrefer_train, scanrefer_val, all_scene_list = get_scanrefer(SCANREFER_TRAIN[:100], SCANREFER_VAL[:10], args.num_scenes)
+    scanrefer_train, scanrefer_val, all_scene_list = get_scanrefer(SCANREFER_TRAIN[:10], SCANREFER_VAL[:10], args.num_scenes)
     scanrefer = {
         "train": scanrefer_train,
         "val": scanrefer_val
@@ -149,13 +150,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--tag", type=str, help="tag for the training, e.g. cuda_wl", default="")
     parser.add_argument("--gpu", type=str, help="gpu", default="0")
-    parser.add_argument("--batch_size", type=int, help="batch size", default=1)
+    parser.add_argument("--batch_size", type=int, help="batch size", default=2)
     parser.add_argument("--epoch", type=int, help="number of epochs", default=200)
     parser.add_argument("--verbose", type=int, help="iterations of showing verbose", default=10)
     parser.add_argument("--val_step", type=int, help="iterations of validating", default=2000)
     parser.add_argument("--lr", type=float, help="learning rate", default=1e-3)
     parser.add_argument("--wd", type=float, help="weight decay", default=1e-5)
-    parser.add_argument("--num_points", type=int, default=10000, help="Point Number [default: 40000]")
+    parser.add_argument("--num_points", type=int, default=1000, help="Point Number [default: 40000]")
     parser.add_argument("--num_proposals", type=int, default=256, help="Proposal number [default: 256]")
     parser.add_argument("--num_scenes", type=int, default=-1, help="Number of scenes [default: -1]")
     parser.add_argument("--seed", type=int, default=42, help="random seed")

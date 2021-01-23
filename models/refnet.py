@@ -24,7 +24,7 @@ class RefNet(nn.Module):
     def __init__(self, num_class, num_heading_bin, num_size_cluster, mean_size_arr, 
     input_feature_dim=0, num_proposal=128, vote_factor=1, sampling="vote_fps",
     use_lang_classifier=True, use_bidir=False, no_reference=False,
-    emb_size=300, hidden_size=256):
+    emb_size=300, hidden_size=256, batch_size=1):
         super().__init__()
 
         self.num_class = num_class
@@ -39,6 +39,7 @@ class RefNet(nn.Module):
         self.use_lang_classifier = use_lang_classifier
         self.use_bidir = use_bidir      
         self.no_reference = no_reference
+        self.batch_size = batch_size
 
 
         # --------- PROPOSAL GENERATION ---------
@@ -139,7 +140,7 @@ class RefNet(nn.Module):
         # loss, visual_dict, meter_dict not necessary here
         # TODO: forwarding to downstream app?
         model_fn = model_fn_decorator()
-        loss, preds, _, _ = model_fn(data_dict, self.pointgroup, data_dict['epoch']) # data_dict['epoch'] = 129
+        loss, preds, _, _ = model_fn(data_dict, self.pointgroup, data_dict['epoch'], self.batch_size) # data_dict['epoch'] = 129
 
         # forward loss 
         data_dict['pg_loss'] = loss

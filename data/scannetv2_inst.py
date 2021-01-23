@@ -310,7 +310,7 @@ class Dataset:
 
         ### voxelize
         voxel_locs, p2v_map, v2p_map = pointgroup_ops.voxelization_idx(locs, self.batch_size, self.mode)
-        print(instance_labels.shape)
+
         return {'locs': locs, 'voxel_locs': voxel_locs, 'p2v_map': p2v_map, 'v2p_map': v2p_map,
                 'locs_float': locs_float, 'feats': feats, 'labels': labels, 'instance_labels': instance_labels,
                 'instance_info': instance_infos, 'instance_pointnum': instance_pointnum,
