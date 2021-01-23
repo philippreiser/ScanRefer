@@ -15,5 +15,5 @@ class SoftmaxRankingLoss(nn.Module):
 
         # reduction
         loss = -torch.sum(torch.log(probs + 1e-8) * targets, dim=1).mean()
-
+        print(loss.item())
         return loss

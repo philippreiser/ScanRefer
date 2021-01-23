@@ -52,12 +52,12 @@ TRAIN:
 
 GROUP:
   ### point grouping
-  cluster_radius: 0.1 # 0.03
+  cluster_radius: 0.5 # 0.03
   cluster_meanActive: 50
   cluster_shift_meanActive: 300
   cluster_npoint_thre: 10 # 50
 
-  prepare_epochs: 100 # 128
+  prepare_epochs: 1 # 128
 
 TEST:
   split: val

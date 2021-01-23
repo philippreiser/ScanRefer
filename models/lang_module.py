@@ -26,7 +26,8 @@ class LangModule(nn.Module):
         if use_lang_classifier:
             self.lang_cls = nn.Sequential(
                 nn.Linear(lang_size, num_text_classes),
-                nn.Dropout()
+                # TODO: Reactivate Dropout after overfitting
+                # nn.Dropout() 
             )
 
 
