@@ -47,6 +47,12 @@ class MatchModule(nn.Module):
         # fuse
         # num_proposals can vary depending on cluster alg
         features = features[None, :, :]
+        # TODO: (example for batch_size=2)
+        # features          (1,  14, 128)
+        # adapted_features  (2, 242, 128)
+        # lang_feat         (2, 300, 128)
+        # --> figure out in features where batch_id 1 ends and where batch_id 2 starts
+        # --> separate cluster features of each batch
         adapted_features = torch.zeros([lang_feat.shape[0], self.num_proposals-features.shape[1], features.shape[2]]).cuda()
         features = torch.cat([features, adapted_features], dim=1)
         features = torch.cat([features, lang_feat], dim=-1) # batch_size, num_proposals, 128 + lang_size
