@@ -67,7 +67,8 @@ BEST_REPORT_TEMPLATE = """
 class Solver():
     def __init__(self, model, config, dataloader, optimizer, stamp, val_step=10, 
     detection=True, reference=True, use_lang_classifier=True,
-    lr_decay_step=None, lr_decay_rate=None, bn_decay_step=None, bn_decay_rate=None):
+    lr_decay_step=None, lr_decay_rate=None, bn_decay_step=None, bn_decay_rate=None,
+    prepare_epochs=-1):
 
         self.epoch = 0                    # set in __call__
         self.verbose = 0                  # set in __call__
@@ -87,6 +88,8 @@ class Solver():
         self.lr_decay_rate = lr_decay_rate
         self.bn_decay_step = bn_decay_step
         self.bn_decay_rate = bn_decay_rate
+
+        self.prepare_epochs = prepare_epochs
 
         self.best = {
             "epoch": 0,
@@ -342,7 +345,9 @@ class Solver():
 
             # eval
             start = time.time()
-            self._eval(data_dict)
+            
+            if epoch_id > self.prepare_epochs:
+                self._eval(data_dict)
             self.log[phase]["eval"].append(time.time() - start)
 
             # record log

@@ -103,6 +103,7 @@ def get_scanrefer(scanrefer_train, scanrefer_val, num_scenes=-1):
 
 def func(args):
     # dataset
+    args.prepare_epochs = cfg.prepare_epochs
     scanrefer_train, scanrefer_val, all_scene_list = get_scanrefer(SCANREFER_TRAIN[:10], SCANREFER_VAL[:10], args.num_scenes)
     scanrefer = {
         "train": scanrefer_train,

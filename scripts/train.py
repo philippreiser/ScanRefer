@@ -142,7 +142,8 @@ def get_solver(args, dataloader):
         lr_decay_step=LR_DECAY_STEP,
         lr_decay_rate=LR_DECAY_RATE,
         bn_decay_step=BN_DECAY_STEP,
-        bn_decay_rate=BN_DECAY_RATE
+        bn_decay_rate=BN_DECAY_RATE,
+        prepare_epochs=args.prepare_epochs
     )
     num_params = get_num_params(model)
 
