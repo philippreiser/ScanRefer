@@ -77,7 +77,7 @@ class ScannetReferencePointGroupDataset(Dataset):
         self.train_data_loader = DataLoader(train_set, batch_size=self.batch_size, collate_fn=self.trainMerge, num_workers=self.train_workers,
                                             shuffle=True, sampler=None, drop_last=True, pin_memory=True)
 
-    def trainMerge(self, idx):
+    def trainMerge_old(self, idx):
         start = time.time()
         idx = idx[0] #TODO: replace with for loop for multiple batches
         scene_id = self.scanrefer[idx]["scene_id"]
@@ -181,6 +181,161 @@ class ScannetReferencePointGroupDataset(Dataset):
                 'instance_info': instance_infos, 'instance_pointnum': instance_pointnum, 'offsets': batch_offsets, 
                 "lang_feat":lang_feat, "lang_len": lang_len,
                 'object_id': object_id, "load_time": load_time, "object_cat": object_cat
+                }
+
+
+    def trainMerge(self, id):
+        start = time.time()
+
+        ## PointGroup Input ##
+        locs = []
+        locs_float = []
+        feats = []
+        labels = []
+        instance_labels = []
+
+        instance_infos = []  # (N, 9)
+        instance_pointnum = []  # (total_nInst), int
+
+        batch_offsets = [0]
+
+        total_inst_num = 0
+
+        ## ScanRefer Input ##
+        lang_feats = []
+        lang_lens = []
+        object_cats = []
+        object_ids = []
+
+        for i, idx in enumerate(id):
+            scene_id = self.scanrefer[idx]["scene_id"]
+            object_id = int(self.scanrefer[idx]["object_id"])
+            object_name = " ".join(self.scanrefer[idx]["object_name"].split("_"))
+            ann_id = self.scanrefer[idx]["ann_id"]
+            
+            # get language features
+            lang_feat = self.lang[scene_id][str(object_id)][ann_id]
+            lang_len = len(self.scanrefer[idx]["token"])
+            lang_len = lang_len if lang_len <= CONF.TRAIN.MAX_DES_LEN else CONF.TRAIN.MAX_DES_LEN
+
+            # get pc
+            mesh_vertices = self.scene_data[scene_id]["mesh_vertices"]
+            instance_label = self.scene_data[scene_id]["instance_labels"]
+            semantic_label = self.scene_data[scene_id]["semantic_labels"]
+            instance_bboxes = self.scene_data[scene_id]["instance_bboxes"]
+
+            if not self.use_color:
+                point_cloud = mesh_vertices[:,0:3] # do not use color for now
+                pcl_color = mesh_vertices[:,3:6]
+            else:
+                point_cloud = mesh_vertices[:,0:6] 
+                point_cloud[:,3:6] = (point_cloud[:,3:6]-MEAN_COLOR_RGB)/256.0
+                pcl_color = point_cloud[:,3:6]
+            
+            if self.use_normal:
+                normals = mesh_vertices[:,6:9]
+                point_cloud = np.concatenate([point_cloud, normals],1)
+
+            if self.use_multiview:
+                # load multiview database
+                pid = mp.current_process().pid
+                if pid not in self.multiview_data:
+                    self.multiview_data[pid] = h5py.File(MULTIVIEW_DATA, "r", libver="latest")
+
+                multiview = self.multiview_data[pid][scene_id]
+                point_cloud = np.concatenate([point_cloud, multiview],1)
+
+            # if self.use_height:
+            #     floor_height = np.percentile(point_cloud[:,2],0.99)
+            #     height = point_cloud[:,2] - floor_height
+            #     point_cloud = np.concatenate([point_cloud, np.expand_dims(height, 1)],1) 
+            
+            point_cloud, choices = random_sampling(point_cloud, self.num_points, return_choices=True)        
+            instance_label = instance_label[choices]
+            semantic_label = semantic_label[choices]
+            pcl_color = pcl_color[choices]
+
+            xyz_origin = point_cloud
+            label = semantic_label
+            rgb = pcl_color
+            ### jitter / flip x / rotation
+            # TODO: Data augmentation
+            xyz_middle = self.dataAugment(xyz_origin, True, True, True)
+
+            ### scale
+            xyz = xyz_middle * self.scale
+
+            ### elastic
+            xyz = self.elastic(xyz, 6 * self.scale // 50, 40 * self.scale / 50)
+            xyz = self.elastic(xyz, 20 * self.scale // 50, 160 * self.scale / 50)
+
+            ### offset
+            xyz -= xyz.min(0)
+
+            ### crop
+            xyz, valid_idxs = self.crop(xyz)
+
+            xyz_middle = xyz_middle[valid_idxs]
+            xyz = xyz[valid_idxs]
+            rgb = rgb[valid_idxs]
+            label = label[valid_idxs]
+            instance_label = self.getCroppedInstLabel(instance_label, valid_idxs)
+            
+            ### get instance information
+            inst_num, inst_infos = self.getInstanceInfo(xyz_middle, instance_label.astype(np.int32))
+            inst_info = inst_infos["instance_info"]  # (n, 9), (cx, cy, cz, minx, miny, minz, maxx, maxy, maxz)
+            inst_pointnum = inst_infos["instance_pointnum"] # (nInst), list
+            
+            instance_label[np.where(instance_label != -100)] += total_inst_num
+            total_inst_num += inst_num
+
+            ### merge the scene to the batch (PG)
+            batch_offsets.append(batch_offsets[-1] + xyz.shape[0])
+
+            locs.append(torch.cat([torch.LongTensor(xyz.shape[0], 1).fill_(i), torch.from_numpy(xyz).long()], 1))
+            locs_float.append(torch.from_numpy(xyz_middle))
+            feats.append(torch.from_numpy(rgb) + torch.randn(3) * 0.1)
+            labels.append(torch.from_numpy(label))
+            instance_labels.append(torch.from_numpy(instance_label.astype(np.int64)))
+
+            instance_infos.append(torch.from_numpy(inst_info))
+            instance_pointnum.extend(inst_pointnum)
+
+            ### merge the scene to the batch (SR)
+            # TODO: Check shape of lang_feats, lang_len, object_cats
+            lang_feats.append(torch.from_numpy(lang_feat.astype(np.float32)))
+            lang_lens.append(torch.from_numpy(np.array(lang_len).astype(np.int64)))
+            object_cat = self.raw2label[object_name] if object_name in self.raw2label else 17
+            object_cats.append(torch.from_numpy(np.array(object_cat).astype(np.int64)))
+        
+        ### merge all the scenes in the batchd (PG)
+        batch_offsets = torch.tensor(batch_offsets, dtype=torch.int)  # int (B+1)
+
+        locs = torch.cat(locs, 0)                                # long (N, 1 + 3), the batch item idx is put in locs[:, 0]
+        locs_float = torch.cat(locs_float, 0).to(torch.float32)  # float (N, 3)
+        feats = torch.cat(feats, 0)                              # float (N, C)
+        labels = torch.cat(labels, 0).long()                     # long (N)
+        instance_labels = torch.cat(instance_labels, 0).long()   # long (N)
+
+        instance_infos = torch.cat(instance_infos, 0).to(torch.float32)       # float (N, 9) (meanxyz, minxyz, maxxyz)
+        instance_pointnum = torch.tensor(instance_pointnum, dtype=torch.int)  # int (total_nInst)
+
+        spatial_shape = np.clip((locs.max(0)[0][1:] + 1).numpy(), self.full_scale[0], None)     # long (3)
+        
+        ### voxelize
+        voxel_locs, p2v_map, v2p_map = pointgroup_ops.voxelization_idx(locs, self.batch_size, self.mode)
+        
+        ### SC
+        lang_feats = torch.tensor(lang_feat, dtype=torch.float32)[None, :, :] # float (B, 126, 300)
+        lang_lens = torch.tensor(lang_lens, dtype=torch.int64) # float (B, 1)
+        object_cats = torch.tensor(object_cats) # float (B, )
+        load_time = torch.from_numpy(np.array(time.time() - start))[None]
+        
+        return {'locs': locs, 'locs_float': locs_float, 'voxel_locs': voxel_locs, 'p2v_map': p2v_map, 'v2p_map': v2p_map,
+                'feats': feats, 'labels': labels, 'instance_labels': instance_labels, 'spatial_shape': spatial_shape,
+                'instance_info': instance_infos, 'instance_pointnum': instance_pointnum, 'offsets': batch_offsets, 
+                "lang_feat":lang_feats, "lang_len": lang_lens,
+                'object_id': object_ids, "load_time": load_time, "object_cat": object_cats
                 }
 
 

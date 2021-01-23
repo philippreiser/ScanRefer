@@ -36,7 +36,7 @@ class LangModule(nn.Module):
         encode the input descriptions
         """
 
-        word_embs = data_dict["lang_feat"]
+        word_embs = data_dict["lang_feat"] # B, hidden_size, num_dir
         lang_feat = pack_padded_sequence(word_embs, data_dict["lang_len"], batch_first=True, enforce_sorted=False)
     
         # encode description
