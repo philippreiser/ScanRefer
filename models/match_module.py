@@ -61,7 +61,7 @@ class MatchModule(nn.Module):
                 if batch_begin_idx < proposals_idx[proposal_offset, 1] < batch_end_idx:
                     batch_id = batch_idx
             proposal_batch_ids[i] = batch_id
-            
+        data_dict['proposal_batch_ids'] = proposal_batch_ids    
         batch_features = []
         for batch_idx in range(self.batch_size):
             batch_id_mask = torch.nonzero(proposal_batch_ids==batch_idx).cuda()
