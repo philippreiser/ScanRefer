@@ -224,8 +224,7 @@ def compute_reference_loss(data_dict, config):
     # dim 1 for cluster_id, dim 2 for corresponding point idxs in N
     # sumNPoint: additional explanation in pointgroup.py
     preds_instances = data_dict['proposals_idx'] # (B*sumNPoint, 2)
-    # to get the num_proposals we look at the length of the first sample in cluster_preds
-    batch_size, num_proposals = len(start_of_samples), len(cluster_preds[:start_of_samples[1]])
+    batch_size, num_proposals = cluster_preds.shape
     labels = torch.zeros(batch_size, num_proposals)
 
     # TODO: vectorize - instead of double iterative approach

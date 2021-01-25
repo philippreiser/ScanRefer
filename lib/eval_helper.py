@@ -178,7 +178,7 @@ def get_eval(data_dict, config, reference, use_lang_classifier=False, use_oracle
     gt_instances = data_dict['instance_labels'] # (B*N)
     target_inst_id = data_dict['object_id'] # (B)
     preds_instances = data_dict['proposals_idx'] # (B*sumNPoint, 2)
-    batch_size, num_proposals = len(start_of_samples), len(cluster_preds[:start_of_samples[1]])
+    batch_size, num_proposals = cluster_preds.shape
     # for every batch
     for i in range(batch_size):
         # compute the iou
