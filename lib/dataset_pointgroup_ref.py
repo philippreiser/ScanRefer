@@ -287,6 +287,7 @@ class ScannetReferencePointGroupDataset(Dataset):
             inst_pointnum = inst_infos["instance_pointnum"] # (nInst), list
             
             instance_label[np.where(instance_label != -100)] += total_inst_num
+            object_id += total_inst_num
             total_inst_num += inst_num
 
             ### merge the scene to the batch (PG)
