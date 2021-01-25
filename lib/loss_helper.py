@@ -213,10 +213,12 @@ def compute_reference_loss(data_dict, config):
     gt_instances = data_dict['instance_labels'] # (B*N)
     target_inst_id = data_dict['object_id'] # (B)
     # as no extra batch_dim exists this gives the index of a next sample
-    start_of_samples = data_dict['offset'] # (B)
+    start_of_samples = data_dict['offsets'] # (B)
 
     # PointGroup: 
-    # NOTE: in PG clustering alg. only points of the same class can be in one cluster 
+    # NOTE: in PG clustering alg. only points of the same class can be in one cluster
+    # they can be assigned mutliple clusters though, and point idx don't restart per 
+    # batch but continue throughout all the batch (as there is no extra batch_dim) 
     
     preds_segmentation = data_dict['semantic_preds'] # (B*N), long
     # dim 1 for cluster_id, dim 2 for corresponding point idxs in N
