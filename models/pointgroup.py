@@ -188,7 +188,7 @@ class PointGroup(nn.Module):
             for param in mod.parameters():
                 param.requires_grad = False
 
-        #### load pretrain weights
+        #### load pretrain weights --> Error: https://github.com/CSAILVision/places365/issues/25
         if self.pretrain_path is not None:
             pretrain_dict = torch.load(self.pretrain_path)
             for m in self.pretrain_module:
@@ -296,7 +296,6 @@ class PointGroup(nn.Module):
             semantic_preds_cpu = semantic_preds[object_idxs].int().cpu()
 
             idx_shift, start_len_shift = pointgroup_ops.ballquery_batch_p(coords_ + pt_offsets_, batch_idxs_, batch_offsets_, self.cluster_radius, self.cluster_shift_meanActive)
-            # Problem: proposal_idx_shift and proposal_offset_shift are tensors shape ([0], )
             proposals_idx_shift, proposals_offset_shift = pointgroup_ops.bfs_cluster(semantic_preds_cpu, idx_shift.cpu(), start_len_shift.cpu(), self.cluster_npoint_thre)
             proposals_idx_shift[:, 1] = object_idxs[proposals_idx_shift[:, 1].long()].int()
             # proposals_idx_shift: (sumNPoint, 2), int, dim 0 for cluster_id, dim 1 for corresponding point idxs in N
