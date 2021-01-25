@@ -198,8 +198,9 @@ def compute_reference_loss(data_dict, config):
         ref_loss, lang_loss, cluster_preds, cluster_labels
     """
 
+    # NOTE: N := num_batches (B) * num_points_per_scene
     # NOTE: data_dict["cluster_ref"] are the cluster confidences from the match_module.py
-    #       B := batch_size
+    #       B := batch_size, num_proposal is fixed because of match_module.py!
 
     # unpack
     cluster_preds = data_dict["cluster_ref"] # (B, num_proposal)
@@ -210,20 +211,22 @@ def compute_reference_loss(data_dict, config):
     # segmentation loss. (+ the same class can appear more than once)
     # hence we want to compare each cluster with the real cluster to find 
     # the best cluster. 
-    gt_instances = data_dict['instance_labels'] # (B*N)
+    gt_instances = data_dict['instance_labels'] # (N)
     target_inst_id = data_dict['object_id'] # (B)
     # as no extra batch_dim exists this gives the index of a next sample
     start_of_samples = data_dict['offsets'] # (B)
+    proposal_batch_ids = data_dict['proposal_batch_ids'] # (nProposal + 1)
 
     # PointGroup: 
     # NOTE: in PG clustering alg. only points of the same class can be in one cluster
     # they can be assigned mutliple clusters though, and point idx don't restart per 
     # batch but continue throughout all the batch (as there is no extra batch_dim) 
     
-    preds_segmentation = data_dict['semantic_preds'] # (B*N), long
+    preds_segmentation = data_dict['semantic_preds'] # (N), long
     # dim 1 for cluster_id, dim 2 for corresponding point idxs in N
     # sumNPoint: additional explanation in pointgroup.py
-    preds_instances = data_dict['proposals_idx'] # (B*sumNPoint, 2)
+    preds_instances = data_dict['proposals_idx'] # (sumNPoint, 2)
+    preds_offsets = data_dict['proposals_offset'] # (nProposal + 1)
     batch_size, num_proposals = cluster_preds.shape
     labels = torch.zeros(batch_size, num_proposals)
 
@@ -237,8 +240,8 @@ def compute_reference_loss(data_dict, config):
         #       we also assume that these ids match with the point_ids from PG
         correct_indices = (
             torch.arange(
-                len(gt_instances[start:end]))[
-                gt_instances[start:end]==target_inst_id[i]
+                len(gt_instances[start:end+1]))[
+                    gt_instances[start:end+1]==target_inst_id[i]
                 ]
             ).cuda()
         # nSamples is the number of points that are asigned to some clusters in one scene
@@ -246,7 +249,16 @@ def compute_reference_loss(data_dict, config):
         #nSamples = preds_instances[i].shape[0] 
         numbSamplePerCluster = torch.zeros(num_proposals)
 
-        for j, point_in_cluster in enumerate(preds_instances[start:end]):
+        # TODO: are the gt_instances also unordered? no 
+        # TODO: is proposal_idx at the end actually 2*sumNPoints? dunno
+
+        # select the correct ones 
+        # in preds_instances the proposals aren't ordered batchwise! 
+        # use proposal_batch_ids to get correct window in preds_instances
+        correct_proposals = proposal_batch_ids[proposal_batch_ids==i]
+        preds_instances_window = preds_instances[correct_proposals]
+
+        for j, point_in_cluster in enumerate(preds_instances_window):
             cluster_id, member_point = point_in_cluster
             numbSamplePerCluster[cluster_id] += 1
             if int(member_point) in correct_indices: 

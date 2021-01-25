@@ -204,10 +204,15 @@ def get_eval(data_dict, config, reference, use_lang_classifier=False, use_oracle
         end = start_of_samples[i+1]
 
         iou = torch.zeros(num_proposals)
-        correct_indices = (torch.arange(len(gt_instances[start:end]))[gt_instances[start:end]==target_inst_id[i]]).cuda()
+        correct_indices = (torch.arange(len(gt_instances[start:end+1]))[gt_instances[start:end+1]==target_inst_id[i]]).cuda()
         numbSamplePerCluster = torch.zeros(num_proposals)
 
-        for j, point_in_cluster in enumerate(preds_instances[start:end]):
+        # get correct window of preds_instances (is unordered)
+        # as is done in match_module.py and loss_helper.py
+        correct_proposals = proposal_batch_ids[data_dict['proposal_batch_ids']==i]
+        preds_instances_window = preds_instances[correct_proposals]
+
+        for j, point_in_cluster in enumerate(preds_instances_window):
             cluster_id, member_point = point_in_cluster
             numbSamplePerCluster[cluster_id] += 1
             if int(member_point) in correct_indices: 
