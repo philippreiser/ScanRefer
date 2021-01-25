@@ -65,7 +65,8 @@ class RefNet(nn.Module):
 
             # --------- PROPOSAL MATCHING ---------
             # Match the generated proposals and select the most confident ones
-            self.match = MatchModule(num_proposals=num_proposal, lang_size=(1 + int(self.use_bidir)) * hidden_size)
+            self.match = MatchModule(num_proposals=num_proposal, lang_size=(1 + int(self.use_bidir)) * hidden_size,
+                                        batch_size=batch_size)
 
     def forward(self, data_dict):
         """ Forward pass of the network

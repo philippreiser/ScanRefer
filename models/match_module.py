@@ -2,12 +2,13 @@ import torch
 import torch.nn as nn
 
 class MatchModule(nn.Module):
-    def __init__(self, num_proposals=256, lang_size=256, hidden_size=128):
+    def __init__(self, num_proposals=256, lang_size=256, hidden_size=128, batch_size=1):
         super().__init__() 
 
         self.num_proposals = num_proposals
         self.lang_size = lang_size
         self.hidden_size = hidden_size
+        self.batch_size = batch_size
 
         self.fuse = nn.Sequential(
             nn.Conv1d(self.lang_size + 128, hidden_size, 1),
@@ -36,6 +37,7 @@ class MatchModule(nn.Module):
         # unpack outputs from detection branch
         features = data_dict['aggregated_vote_features'] # batch_size, num_proposal, 128
         proposals_idx, proposals_offset = data_dict['proposals_idx'], data_dict['proposals_offset']
+        b_offsets = data_dict['offsets']
         
         # PointGroup: 
         # for now no masking substitute
@@ -47,20 +49,28 @@ class MatchModule(nn.Module):
 
         # fuse
         # num_proposals can vary depending on cluster alg
-        features = features[None, :, :]
-        # TODO: (example for batch_size=2)
-        # features          (1,  14, 128)
-        # adapted_features  (2, 242, 128)
-        # lang_feat         (2, 300, 128)
-        # --> figure out in features where batch_id 1 ends and where batch_id 2 starts
-        # --> separate cluster features of each batch
-        #TODO: pass batch size
+
+        #TODO: Add comments for feature fill-up with batch_size>1
+        features_batches = []
+        proposal_batch_ids = torch.zeros(features.shape[0], dtype=torch.int32).cuda()
+        batch_idx = 0
+        for i, proposal_offset in enumerate(proposals_offset[:-1]):
+            batch_id = 0
+            for batch_idx in range(self.batch_size):
+                batch_begin_idx, batch_end_idx = b_offsets[batch_idx:batch_idx+2]
+                if batch_begin_idx < proposals_idx[proposal_offset, 1] < batch_end_idx:
+                    batch_id = batch_idx
+            proposal_batch_ids[i] = batch_id
+            
+        batch_features = []
         for batch_idx in range(self.batch_size):
-            batch_begin_idx, batch_end_idx = b_offset[batch_idx:batch_idx+2]
-            mask = (batch_begin_idx<proposals_offset<batch_end_idx)
-            #b_offset[mask][]
-        adapted_features = torch.zeros([lang_feat.shape[0], self.num_proposals-features.shape[1], features.shape[2]]).cuda()
-        features = torch.cat([features, adapted_features], dim=1)
+            batch_id_mask = torch.nonzero(proposal_batch_ids==batch_idx).cuda()
+            batch_id_features = features[batch_id_mask].squeeze(1)
+            adapted_features = torch.zeros([self.num_proposals-batch_id_features.shape[0], batch_id_features.shape[1]]).cuda()
+            batch_id_features = torch.cat([batch_id_features, adapted_features], dim=0)
+            batch_features.append(batch_id_features)
+        features = torch.cat(batch_features).reshape(self.batch_size, -1, 128)
+        
         features = torch.cat([features, lang_feat], dim=-1) # batch_size, num_proposals, 128 + lang_size
         features = features.permute(0, 2, 1).contiguous() # batch_size, 128 + lang_size, num_proposals
         
