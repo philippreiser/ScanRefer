@@ -220,8 +220,7 @@ def compute_reference_loss(data_dict, config):
     
     preds_segmentation = data_dict['semantic_preds'] # (B*N), long
     # dim 1 for cluster_id, dim 2 for corresponding point idxs in N
-    # sumNPoint: Total number of points belonging to some cluster 
-    #            Some points don't get assigned a cluster
+    # sumNPoint: additional explanation in pointgroup.py
     preds_instances = data_dict['proposals_idx'] # (B*sumNPoint, 2)
     # to get the num_proposals we look at the length of the first sample in cluster_preds
     batch_size, num_proposals = len(start_of_samples), len(cluster_preds[:start_of_samples[1]])
