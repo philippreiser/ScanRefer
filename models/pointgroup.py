@@ -286,6 +286,14 @@ class PointGroup(nn.Module):
 
         if(epoch > self.prepare_epochs):
             #### get prooposal clusters
+            # NOTE: proposals_idx_shift are the result of the shifted clustering 
+            # and proposals_idx of the normal clustering. They are concat afterwards.
+            # proposal_offset (_shift) mark the beginning of each proposal (what batch_offsets
+            # does for batches) as there is no extra dimension for proposals or batches. 
+            # NOTE: sumNPoints are all the points and their assigned cluster.
+            # Although points can only be in a cluster together with points from the same object
+            # type, they can still be part of multiple clusters. That is the reason why 
+            # sumNPoints >= N (sum of all points in all scenes that have been passed in as one batch)
             object_idxs = torch.nonzero(semantic_preds > 1).view(-1)
 
             batch_idxs_ = batch_idxs[object_idxs]
