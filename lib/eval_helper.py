@@ -177,6 +177,8 @@ def get_eval(data_dict, config, reference, use_lang_classifier=False, use_oracle
     start_of_samples = data_dict['offsets'] # (B)
     gt_instances = data_dict['instance_labels'] # (B*N)
     target_inst_id = data_dict['object_id'] # (B)
+    preds_offsets = data_dict['proposals_offset']
+    proposal_batch_ids = data_dict['proposal_batch_ids']
     preds_instances = data_dict['proposals_idx'] # (B*sumNPoint, 2)
     batch_size, num_proposals = cluster_preds.shape
     # for every batch
@@ -209,14 +211,15 @@ def get_eval(data_dict, config, reference, use_lang_classifier=False, use_oracle
 
         # get correct window of preds_instances (is unordered)
         # as is done in match_module.py and loss_helper.py
-        correct_proposals = data_dict['proposals_offset'][
+        correct_proposals = data_dict['proposals_offset'][:-1][
             data_dict['proposal_batch_ids']==i
             ]
-        correct_proposals = preds_offsets[proposal_batch_ids==i]
-        for j in range(len(correct_proposals)):
-            cluster_ids, member_points = preds_instances[
+        correct_proposals = preds_offsets[:-1][proposal_batch_ids==i]
+        for j in range(len(correct_proposals)-1):
+            preds_instance_proposals = preds_instances[
                 correct_proposals[j]:correct_proposals[j+1]
                 ]
+            cluster_ids, member_points=preds_instance_proposals[:,0], preds_instance_proposals[:,1]
             for cluster_id, member_point in zip(cluster_ids, member_points):
                 numbSamplePerCluster[cluster_id] += 1
                 if int(member_point) in correct_indices: 
@@ -250,8 +253,9 @@ def get_eval(data_dict, config, reference, use_lang_classifier=False, use_oracle
 
     # store
     data_dict["ref_iou"] = ious
-    data_dict["ref_iou_rate_0.25"] = np.array(ious)[np.array(ious) >= 0.25].shape[0] / np.array(ious).shape[0]
-    data_dict["ref_iou_rate_0.5"] = np.array(ious)[np.array(ious) >= 0.5].shape[0] / np.array(ious).shape[0]
+    ious = torch.cat(ious, 0).reshape(-1, num_proposals).numpy()
+    data_dict["ref_iou_rate_0.25"] = ious[ious >= 0.25].shape[0] /ious.shape[0]
+    data_dict["ref_iou_rate_0.5"] = ious[ious >= 0.5].shape[0] / ious.shape[0]
     #data_dict["ref_multiple_mask"] = multiple
     #data_dict["ref_others_mask"] = others
     #data_dict["pred_bboxes"] = pred_bboxes

@@ -217,6 +217,7 @@ def compute_reference_loss(data_dict, config):
     start_of_samples = data_dict['offsets'] # (B)
     proposal_batch_ids = data_dict['proposal_batch_ids'] # (nProposal + 1)
 
+
     # PointGroup: 
     # NOTE: in PG clustering alg. only points of the same class can be in one cluster
     # they can be assigned mutliple clusters though, and point idx don't restart per 
@@ -255,12 +256,13 @@ def compute_reference_loss(data_dict, config):
         # select the correct ones 
         # in preds_instances the proposals aren't ordered batchwise! 
         # use proposal_batch_ids, preds_offsets to get correct window in preds_instances
-        correct_proposals = preds_offsets[proposal_batch_ids==i]
+        correct_proposals = preds_offsets[:-1][proposal_batch_ids==i]
 
-        for j in range(len(correct_proposals)):
-            cluster_ids, member_points = preds_instances[
+        for j in range(len(correct_proposals)-1):
+            preds_instance_proposals = preds_instances[
                 correct_proposals[j]:correct_proposals[j+1]
                 ]
+            cluster_ids, member_points=preds_instance_proposals[:,0], preds_instance_proposals[:,1]
             for cluster_id, member_point in zip(cluster_ids, member_points):
                 numbSamplePerCluster[cluster_id] += 1
                 if int(member_point) in correct_indices: 
