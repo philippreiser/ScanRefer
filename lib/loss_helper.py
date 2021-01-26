@@ -254,23 +254,24 @@ def compute_reference_loss(data_dict, config):
 
         # select the correct ones 
         # in preds_instances the proposals aren't ordered batchwise! 
-        # use proposal_batch_ids to get correct window in preds_instances
-        correct_proposals = proposal_batch_ids[proposal_batch_ids==i]
-        preds_instances_window = preds_instances[correct_proposals]
+        # use proposal_batch_ids, preds_offsets to get correct window in preds_instances
+        correct_proposals = preds_offsets[proposal_batch_ids==i]
 
-        for j, point_in_cluster in enumerate(preds_instances_window):
-            cluster_id, member_point = point_in_cluster
-            numbSamplePerCluster[cluster_id] += 1
-            if int(member_point) in correct_indices: 
-                # in preds_instances for every point there is one entry (one assigned cluster_id)
-                # I want all of them to count for one sample (the underlying scan)
-                # the cluster_id with the most counts will be the true label.
-                # counts are defined as points being in the correct_indices (-> IoU)
-                # use index instead of i if no batch_size, but all batches directly concatenated 
-                # = what we first assumed would be how PG trains on multiple batches.
-                #index = int(np.floor(j/nSamples))
-                labels[i, cluster_id] += 1
-
+        for j in range(len(correct_proposals)):
+            cluster_ids, member_points = preds_instances[
+                correct_proposals[j]:correct_proposals[j+1]
+                ]
+            for cluster_id, member_point in zip(cluster_ids, member_points):
+                numbSamplePerCluster[cluster_id] += 1
+                if int(member_point) in correct_indices: 
+                    # in preds_instances for every point there is one entry (one assigned cluster_id)
+                    # I want all of them to count for one sample (the underlying scan)
+                    # the cluster_id with the most counts will be the true label.
+                    # counts are defined as points being in the correct_indices (-> IoU)
+                    # use index instead of i if no batch_size, but all batches directly concatenated 
+                    # = what we first assumed would be how PG trains on multiple batches.
+                    #index = int(np.floor(j/nSamples))
+                    labels[i, cluster_id] += 1
         # union of points in real instance (gt) and respective pred instance
         # - labels to not have the intersection count double
         numbSamplePerCluster += len(correct_indices)-labels[i]

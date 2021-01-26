@@ -209,14 +209,18 @@ def get_eval(data_dict, config, reference, use_lang_classifier=False, use_oracle
 
         # get correct window of preds_instances (is unordered)
         # as is done in match_module.py and loss_helper.py
-        correct_proposals = proposal_batch_ids[data_dict['proposal_batch_ids']==i]
-        preds_instances_window = preds_instances[correct_proposals]
-
-        for j, point_in_cluster in enumerate(preds_instances_window):
-            cluster_id, member_point = point_in_cluster
-            numbSamplePerCluster[cluster_id] += 1
-            if int(member_point) in correct_indices: 
-                iou[cluster_id] += 1
+        correct_proposals = data_dict['proposals_offset'][
+            data_dict['proposal_batch_ids']==i
+            ]
+        correct_proposals = preds_offsets[proposal_batch_ids==i]
+        for j in range(len(correct_proposals)):
+            cluster_ids, member_points = preds_instances[
+                correct_proposals[j]:correct_proposals[j+1]
+                ]
+            for cluster_id, member_point in zip(cluster_ids, member_points):
+                numbSamplePerCluster[cluster_id] += 1
+                if int(member_point) in correct_indices: 
+                    iou[cluster_id] += 1
 
         # union of points in real instance (gt) and respective pred instance
         # - iou to not have the intersection count double
