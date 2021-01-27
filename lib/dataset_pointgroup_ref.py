@@ -40,6 +40,7 @@ class ScannetReferencePointGroupDataset(Dataset):
         use_normal=False, 
         use_multiview=False, 
         augment=False,
+        data_augmentation=False,
         scale=50,
         full_scale=[128, 512],
         max_npoint=250000,
@@ -56,6 +57,7 @@ class ScannetReferencePointGroupDataset(Dataset):
         self.use_normal = use_normal # TODO
         self.use_multiview = use_multiview # TODO
         self.augment = augment # TODO
+        self.data_augmentation = data_augmentation
         self.scale = scale
         self.full_scale = full_scale
         self.max_npoint = max_npoint
@@ -258,30 +260,46 @@ class ScannetReferencePointGroupDataset(Dataset):
             xyz_origin = point_cloud
             label = semantic_label
             rgb = pcl_color
-            ### jitter / flip x / rotation
-            # TODO: Data augmentation
-            xyz_middle = self.dataAugment(xyz_origin, True, True, True)
+            if self.data_augmentation:
+                # TODO: Data augmentation
+                ### jitter / flip x / rotation
+                xyz_middle = self.dataAugment(xyz_origin, True, True, True)
 
-            ### scale
-            xyz = xyz_middle * self.scale
+                ### scale
+                xyz = xyz_middle * self.scale
 
-            ### elastic
-            xyz = self.elastic(xyz, 6 * self.scale // 50, 40 * self.scale / 50)
-            xyz = self.elastic(xyz, 20 * self.scale // 50, 160 * self.scale / 50)
+                ### elastic
+                xyz = self.elastic(xyz, 6 * self.scale // 50, 40 * self.scale / 50)
+                xyz = self.elastic(xyz, 20 * self.scale // 50, 160 * self.scale / 50)
 
-            ### offset
-            xyz -= xyz.min(0)
+                ### offset
+                xyz -= xyz.min(0)
 
-            ### crop
-            xyz, valid_idxs = self.crop(xyz)
+                ### crop
+                xyz, valid_idxs = self.crop(xyz)
 
-            xyz_middle = xyz_middle[valid_idxs]
-            xyz = xyz[valid_idxs]
-            rgb = rgb[valid_idxs]
-            label = label[valid_idxs]
-            instance_label = self.getCroppedInstLabel(instance_label, valid_idxs)
+                xyz_middle = xyz_middle[valid_idxs]
+                xyz = xyz[valid_idxs]
+                rgb = rgb[valid_idxs]
+                label = label[valid_idxs]
+                instance_label = self.getCroppedInstLabel(instance_label, valid_idxs)
             
             ### get instance information
+            if not self.data_augmentation:
+                xyz_middle  = self.dataAugment(xyz_origin, False, False, False)
+                ### scale
+                xyz = xyz_middle * self.scale
+                ### offset
+                xyz -= xyz.min(0)
+                ### crop
+                xyz, valid_idxs = self.crop(xyz)
+
+                xyz_middle = xyz_middle[valid_idxs]
+                xyz = xyz[valid_idxs]
+                rgb = rgb[valid_idxs]
+                label = label[valid_idxs]
+                instance_label = self.getCroppedInstLabel(instance_label, valid_idxs)
+
             inst_num, inst_infos = self.getInstanceInfo(xyz_middle, instance_label.astype(np.int32))
             inst_info = inst_infos["instance_info"]  # (n, 9), (cx, cy, cz, minx, miny, minz, maxx, maxy, maxz)
             inst_pointnum = inst_infos["instance_pointnum"] # (nInst), list
