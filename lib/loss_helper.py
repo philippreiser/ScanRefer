@@ -223,7 +223,6 @@ def compute_reference_loss(data_dict, config):
     # they can be assigned mutliple clusters though, and point idx don't restart per 
     # batch but continue throughout all the batch (as there is no extra batch_dim) 
     
-    preds_segmentation = data_dict['semantic_preds'] # (N), long
     # dim 1 for cluster_id, dim 2 for corresponding point idxs in N
     # sumNPoint: additional explanation in pointgroup.py
     preds_instances = data_dict['proposals_idx'] # (sumNPoint, 2)
@@ -241,8 +240,8 @@ def compute_reference_loss(data_dict, config):
         #       we also assume that these ids match with the point_ids from PG
         correct_indices = (
             torch.arange(
-                len(gt_instances[start:end+1]))[
-                    gt_instances[start:end+1]==target_inst_id[i]
+                len(gt_instances))[
+                    gt_instances==target_inst_id[i]
                 ]
             ).cuda()
         # nSamples is the number of points that are asigned to some clusters in one scene
@@ -259,8 +258,11 @@ def compute_reference_loss(data_dict, config):
         correct_proposals = preds_offsets[:-1][proposal_batch_ids==i]
 
         for j in range(len(correct_proposals)-1):
+            start_correct_proposals = correct_proposals[j]
+            end_correct_proposals = torch.nonzero(preds_offsets==correct_proposals[j])+1
+            end_correct_proposals = preds_offsets[end_correct_proposals]
             preds_instance_proposals = preds_instances[
-                correct_proposals[j]:correct_proposals[j+1]
+                start_correct_proposals:end_correct_proposals
                 ]
             cluster_ids, member_points=preds_instance_proposals[:,0], preds_instance_proposals[:,1]
             for cluster_id, member_point in zip(cluster_ids, member_points):

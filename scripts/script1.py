@@ -28,8 +28,6 @@ from util.log import logger
 import util.utils as utils
 from lib.loss_helper import get_loss
 
-from train import get_solver
-
 SCANREFER_TRAIN = json.load(open(os.path.join(CONF.PATH.DATA, "ScanRefer_filtered_train.json")))
 SCANREFER_VAL = json.load(open(os.path.join(CONF.PATH.DATA, "ScanRefer_filtered_val.json")))
 
@@ -101,10 +99,70 @@ def get_scanrefer(scanrefer_train, scanrefer_val, num_scenes=-1):
 
     return new_scanrefer_train, new_scanrefer_val, all_scene_list
 
+def get_model(args):
+    # initiate model
+    input_channels = int(args.use_multiview) * 128 + int(args.use_normal) * 3 + int(args.use_color) * 3 + int(not args.no_height)
+    model = RefNet(
+        num_class=DC.num_class,
+        num_heading_bin=DC.num_heading_bin,
+        num_size_cluster=DC.num_size_cluster,
+        mean_size_arr=DC.mean_size_arr,
+        input_feature_dim=input_channels,
+        num_proposal=args.num_proposals,
+        use_lang_classifier=(not args.no_lang_cls),
+        use_bidir=args.use_bidir,
+        no_reference=args.no_reference,
+        batch_size=args.batch_size
+    )    
+    # to CUDA
+    model = model.cuda()
+
+    return model
+
+def get_num_params(model):
+    model_parameters = filter(lambda p: p.requires_grad, model.parameters())
+    num_params = int(sum([np.prod(p.size()) for p in model_parameters]))
+
+    return num_params
+
+def get_solver(args, dataloader):
+    model = get_model(args)
+    optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr, weight_decay=args.wd)
+    stamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    if args.tag: stamp += "_"+args.tag.upper()
+    root = os.path.join(CONF.PATH.OUTPUT, stamp)
+    os.makedirs(root, exist_ok=True)
+
+    # scheduler parameters for training solely the detection pipeline
+    LR_DECAY_STEP = [80, 120, 160] if args.no_reference else None
+    LR_DECAY_RATE = 0.1 if args.no_reference else None
+    BN_DECAY_STEP = 20 if args.no_reference else None
+    BN_DECAY_RATE = 0.5 if args.no_reference else None
+
+    solver = Solver(
+        model=model, 
+        config=DC, 
+        dataloader=dataloader, 
+        optimizer=optimizer, 
+        stamp=stamp, 
+        val_step=args.val_step,
+        detection=not args.no_detection,
+        reference=not args.no_reference, 
+        use_lang_classifier=not args.no_lang_cls,
+        lr_decay_step=LR_DECAY_STEP,
+        lr_decay_rate=LR_DECAY_RATE,
+        bn_decay_step=BN_DECAY_STEP,
+        bn_decay_rate=BN_DECAY_RATE,
+        prepare_epochs=args.prepare_epochs
+    )
+    num_params = get_num_params(model)
+    return solver, num_params, root
+
+
 def func(args):
     # dataset
     args.prepare_epochs = cfg.prepare_epochs
-    scanrefer_train, scanrefer_val, all_scene_list = get_scanrefer(SCANREFER_TRAIN[:10], SCANREFER_VAL[:10], args.num_scenes)
+    scanrefer_train, scanrefer_val, all_scene_list = get_scanrefer(SCANREFER_TRAIN[:2], SCANREFER_VAL[:2], args.num_scenes)
     scanrefer = {
         "train": scanrefer_train,
         "val": scanrefer_val
@@ -150,14 +208,14 @@ def func(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--tag", type=str, help="tag for the training, e.g. cuda_wl", default="")
-    parser.add_argument("--gpu", type=str, help="gpu", default="0")
+    parser.add_argument("--gpu", type=str, help="gpu", default="2")
     parser.add_argument("--batch_size", type=int, help="batch size", default=2)
     parser.add_argument("--epoch", type=int, help="number of epochs", default=200)
     parser.add_argument("--verbose", type=int, help="iterations of showing verbose", default=10)
     parser.add_argument("--val_step", type=int, help="iterations of validating", default=2000)
     parser.add_argument("--lr", type=float, help="learning rate", default=1e-3)
     parser.add_argument("--wd", type=float, help="weight decay", default=1e-5)
-    parser.add_argument("--num_points", type=int, default=1000, help="Point Number [default: 40000]")
+    parser.add_argument("--num_points", type=int, default=40000, help="Point Number [default: 40000]")
     parser.add_argument("--num_proposals", type=int, default=256, help="Proposal number [default: 256]")
     parser.add_argument("--num_scenes", type=int, default=-1, help="Number of scenes [default: -1]")
     parser.add_argument("--seed", type=int, default=42, help="random seed")
