@@ -231,6 +231,8 @@ def compute_reference_loss(data_dict, config):
     total_num_proposals = len(preds_offsets)-1
     labels = torch.zeros(total_num_proposals)
 
+    # reference loss
+    criterion = SoftmaxRankingLoss()
     loss = 0
     # TODO: vectorize - instead of double iterative approach
     # for each sample in batch
@@ -295,8 +297,8 @@ def compute_reference_loss(data_dict, config):
 
         # scene-wise loss calucation 
         # labels is total_num_proposals long (same size as proposal_batch_ids)
-        cluster_labels_scene = torch.FloatTensor(labels[proposal_batch_ids])
-        cluster_preds_scene = cluster_preds[proposal_batch_ids]
+        cluster_labels_scene = torch.FloatTensor(labels[proposal_batch_ids==i])
+        cluster_preds_scene = cluster_preds[i]
         # loss = 0 is defined above
         loss += criterion(cluster_preds_scene, cluster_labels_scene.float().clone()) 
 
@@ -304,9 +306,7 @@ def compute_reference_loss(data_dict, config):
 
     # TODO: check if cluster_id starts with 0
 
-    # reference loss
-    criterion = SoftmaxRankingLoss()
-    loss = criterion(cluster_preds, cluster_labels.float().clone())
+    
     return loss, cluster_preds, cluster_labels
 
 def compute_lang_classification_loss(data_dict):
