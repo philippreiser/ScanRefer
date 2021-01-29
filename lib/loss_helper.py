@@ -227,7 +227,7 @@ def compute_reference_loss(data_dict, config):
     # sumNPoint: additional explanation in pointgroup.py
     preds_instances = data_dict['proposals_idx'] # (sumNPoint, 2)
     preds_offsets = data_dict['proposals_offset'] # (nProposal + 1)
-    batch_size, _ = cluster_preds.shape
+    batch_size, num_proposals = cluster_preds.shape
     total_num_proposals = len(preds_offsets)-1
     labels = torch.zeros(total_num_proposals)
 
@@ -236,6 +236,7 @@ def compute_reference_loss(data_dict, config):
     loss = 0
     # TODO: vectorize - instead of double iterative approach
     # for each sample in batch
+    cluster_labels = torch.zeros_like(cluster_preds).cuda()
     for i in range(batch_size):
         start = start_of_samples[i]
         end = start_of_samples[i+1]
@@ -297,12 +298,14 @@ def compute_reference_loss(data_dict, config):
 
         # scene-wise loss calucation 
         # labels is total_num_proposals long (same size as proposal_batch_ids)
-        cluster_labels_scene = torch.FloatTensor(labels[proposal_batch_ids==i])
-        cluster_preds_scene = cluster_preds[i]
+        cluster_labels_scene = torch.FloatTensor(labels[proposal_batch_ids==i]).cuda()
+        cluster_preds_scene = cluster_preds[i][:cluster_labels_scene.shape[0]] # because in matching module 0s were added for missing values
         # loss = 0 is defined above
-        loss += criterion(cluster_preds_scene, cluster_labels_scene.float().clone()) 
+        loss += criterion(cluster_preds_scene, cluster_labels_scene.float().clone())
+        cluster_labels_scene_fill = torch.zeros(num_proposals-cluster_labels_scene.shape[0]).cuda()
+        cluster_labels[i] = torch.cat([cluster_labels_scene,cluster_labels_scene_fill])
 
-    cluster_labels = torch.FloatTensor(labels).cuda()
+    #cluster_labels = torch.FloatTensor(labels).cuda()
 
     # TODO: check if cluster_id starts with 0
 
