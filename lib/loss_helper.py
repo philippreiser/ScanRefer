@@ -228,9 +228,11 @@ def compute_reference_loss(data_dict, config):
     # sumNPoint: additional explanation in pointgroup.py
     preds_instances = data_dict['proposals_idx'] # (sumNPoint, 2)
     preds_offsets = data_dict['proposals_offset'] # (nProposal + 1)
-    batch_size, num_proposals = cluster_preds.shape
-    labels = torch.zeros(batch_size, num_proposals)
+    batch_size, _ = cluster_preds.shape
+    total_num_proposals = len(preds_offsets)-1
+    labels = torch.zeros(total_num_proposals)
 
+    loss = 0
     # TODO: vectorize - instead of double iterative approach
     # for each sample in batch
     for i in range(batch_size):
@@ -248,8 +250,8 @@ def compute_reference_loss(data_dict, config):
         # nSamples is the number of points that are asigned to some clusters in one scene
         # NOTE: only works with an extra batch_size dimension
         #nSamples = preds_instances[i].shape[0] 
-        numbSamplePerCluster = torch.zeros(num_proposals)
-
+        numbSamplePerCluster = torch.zeros(total_num_proposals)
+        labels = torch.zeros(total_num_proposals) 
         # TODO: are the gt_instances also unordered? no 
         # TODO: is proposal_idx at the end actually 2*sumNPoints? dunno
 
@@ -257,7 +259,6 @@ def compute_reference_loss(data_dict, config):
         # in preds_instances the proposals aren't ordered batchwise! 
         # use proposal_batch_ids, preds_offsets to get correct window in preds_instances
         correct_proposals = preds_offsets[:-1][proposal_batch_ids==i]
-
         for j in range(len(correct_proposals)-1):
             preds_instance_proposals = preds_instances[
                 correct_proposals[j]:correct_proposals[j+1]
@@ -273,21 +274,29 @@ def compute_reference_loss(data_dict, config):
                     # use index instead of i if no batch_size, but all batches directly concatenated 
                     # = what we first assumed would be how PG trains on multiple batches.
                     #index = int(np.floor(j/nSamples))
-                    labels[i, cluster_id] += 1
+                    labels[cluster_id] += 1
         # union of points in real instance (gt) and respective pred instance
         # - labels to not have the intersection count double
-        numbSamplePerCluster += len(correct_indices)-labels[i]
+        numbSamplePerCluster += len(correct_indices)-labels
         # normalize intersection with union => IoU score now
-        labels[i] = labels[i]/numbSamplePerCluster
-        max_elem = labels[i].max()
+        labels = labels/numbSamplePerCluster
+        max_elem = labels.max()
         # convert to one-hot-matrix with 0 on max per row
+        # TODO: necessary if? -> # If no IoU with GT 
         if max_elem != 0:
-            labels[i] = torch.floor(labels[i]/max_elem)
+            labels = torch.floor(labels/max_elem)
         else:
-            labels[i] = torch.zeros(len(labels[i])) # reset all counts
+            labels = torch.zeros(len(labels)) # reset all counts
             # TODO: Sensible? Decoupling not completely given anymore! 
             #       All ones? (All zeros leads to low loss, because most preds are 0 --> we want loss increase)
-            labels[i, target_inst_id] = 1 # If no IoU with GT 
+            labels[target_inst_id] = 1 # If no IoU with GT 
+
+        # scene-wise loss calucation 
+        # labels is total_num_proposals long (same size as proposal_batch_ids)
+        cluster_labels_scene = torch.FloatTensor(labels[proposal_batch_ids])
+        cluster_preds_scene = cluster_preds[proposal_batch_ids]
+        # loss = 0 is defined above
+        loss += criterion(cluster_preds_scene, cluster_labels_scene.float().clone()) 
 
     cluster_labels = torch.FloatTensor(labels).cuda()
 
