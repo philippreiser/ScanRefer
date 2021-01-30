@@ -48,12 +48,15 @@ class MatchModule(nn.Module):
         #TODO: Add comments for feature fill-up with batch_size>1
         proposal_batch_ids = torch.zeros(features.shape[0], dtype=torch.int32).cuda()
         batch_idx = 0
+        batch_id = 0
+
         for i, proposal_offset in enumerate(proposals_offset[:-1]):
-            batch_id = 0
             for batch_idx in range(self.batch_size):
                 batch_begin_idx, batch_end_idx = b_offsets[batch_idx:batch_idx+2]
-                if batch_begin_idx < proposals_idx[proposal_offset, 1] < batch_end_idx:
+                if (batch_begin_idx <= proposals_idx[proposal_offset, 1]) and (
+                     proposals_idx[proposal_offset, 1]< batch_end_idx):
                     batch_id = batch_idx
+                    break
             proposal_batch_ids[i] = batch_id
         # save for loss_helper
         data_dict['proposal_batch_ids'] = proposal_batch_ids
