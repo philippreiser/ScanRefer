@@ -81,9 +81,12 @@ def get_eval(data_dict, config, reference, use_lang_classifier=False, use_oracle
 
     cluster_preds = data_dict["cluster_ref"] # (B*num_proposal)
     cluster_labels = data_dict["cluster_labels"].float()
+
+    preds = torch.zeros_like(cluster_lables)
+    preds = preds.scatter_(1, cluster_preds.argmax(dim=1), 1)
     
     # compute classification scores
-    corrects = torch.sum((cluster_preds == 1) * (cluster_labels == 1), dim=1).float()
+    corrects = torch.sum((preds == 1) * (cluster_labels == 1), dim=1).float()
     labels = torch.ones(corrects.shape[0]).cuda()
     ref_acc = corrects / (labels + 1e-8)
     
