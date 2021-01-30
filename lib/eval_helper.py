@@ -181,6 +181,7 @@ def get_eval(data_dict, config, reference, use_lang_classifier=False, use_oracle
     proposal_batch_ids = data_dict['proposal_batch_ids']
     preds_instances = data_dict['proposals_idx'] # (B*sumNPoint, 2)
     batch_size, num_proposals = cluster_preds.shape
+    total_num_proposals = len(preds_offsets)-1
     # for every batch
     for i in range(batch_size):
         # compute the iou
@@ -205,19 +206,26 @@ def get_eval(data_dict, config, reference, use_lang_classifier=False, use_oracle
         start = start_of_samples[i]
         end = start_of_samples[i+1]
 
-        iou = torch.zeros(num_proposals)
-        correct_indices = (torch.arange(len(gt_instances[start:end+1]))[gt_instances[start:end+1]==target_inst_id[i]]).cuda()
-        numbSamplePerCluster = torch.zeros(num_proposals)
+        correct_indices = (
+            torch.arange(
+                len(gt_instances))[
+                    gt_instances==target_inst_id[i]
+                ]
+            ).cuda()
+        numbSamplePerCluster = torch.zeros(total_num_proposals)
+        iou = torch.zeros(total_num_proposals)
 
         # get correct window of preds_instances (is unordered)
         # as is done in match_module.py and loss_helper.py
         correct_proposals = data_dict['proposals_offset'][:-1][
-            data_dict['proposal_batch_ids']==i
+            proposal_batch_ids==i
             ]
-        correct_proposals = preds_offsets[:-1][proposal_batch_ids==i]
         for j in range(len(correct_proposals)-1):
+            start_correct_proposals = correct_proposals[j]
+            end_correct_proposals = torch.nonzero(preds_offsets==correct_proposals[j])+1
+            end_correct_proposals = preds_offsets[end_correct_proposals]
             preds_instance_proposals = preds_instances[
-                correct_proposals[j]:correct_proposals[j+1]
+                start_correct_proposals:end_correct_proposals
                 ]
             cluster_ids, member_points=preds_instance_proposals[:,0], preds_instance_proposals[:,1]
             for cluster_id, member_point in zip(cluster_ids, member_points):
@@ -226,10 +234,14 @@ def get_eval(data_dict, config, reference, use_lang_classifier=False, use_oracle
                     iou[cluster_id] += 1
 
         # union of points in real instance (gt) and respective pred instance
-        # - iou to not have the intersection count double
+        # - iou to not have the intersection to count double
         numbSamplePerCluster += len(correct_indices)-iou
         # normalize intersection with union => IoU score now
         iou = iou/numbSamplePerCluster
+        # only get the indices that are in current batch 
+        iou = iou[proposal_batch_ids==i]
+        # fill up the label to match predictions (= proposal of biggest scene)
+        iou = torch.cat([iou, torch.zeros(num_proposals - iou.shape[0])])
         ious.append(iou)
 
         # NOTE: get_3d_box() will return problematic bboxes
