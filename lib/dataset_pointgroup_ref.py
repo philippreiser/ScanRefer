@@ -40,7 +40,7 @@ class ScannetReferencePointGroupDataset(Dataset):
         use_normal=False, 
         use_multiview=False, 
         augment=False,
-        data_augmentation=False,
+        data_augmentation=True,
         scale=50,
         full_scale=[128, 512],
         max_npoint=250000,

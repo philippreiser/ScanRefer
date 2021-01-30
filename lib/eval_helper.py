@@ -271,7 +271,7 @@ def get_eval(data_dict, config, reference, use_lang_classifier=False, use_oracle
 
     # store
     data_dict["ref_iou"] = ious
-    ious = torch.cat(ious, 0).reshape(-1, num_proposals).numpy()
+    ious = torch.cat(ious, 0).reshape(-1).numpy()
     data_dict["ref_iou_rate_0.25"] = ious[ious >= 0.25].shape[0] /ious.shape[0]
     data_dict["ref_iou_rate_0.5"] = ious[ious >= 0.5].shape[0] / ious.shape[0]
     #data_dict["ref_multiple_mask"] = multiple
