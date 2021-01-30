@@ -239,16 +239,7 @@ def get_eval(data_dict, config, reference, use_lang_classifier=False, use_oracle
                 if int(member_point) in correct_indices: 
                     iou[cluster_id] += 1
 
-        # union of points in real instance (gt) and respective pred instance
-        # - iou to not have the intersection to count double
-        numbSamplePerCluster += len(correct_indices)-iou
-        # normalize intersection with union => IoU score now
-        iou = iou/numbSamplePerCluster
-        # only get the indices that are in current batch 
-        iou = iou[proposal_batch_ids==i]
-        # fill up the label to match predictions (= proposal of biggest scene)
-        iou = torch.cat([iou, torch.zeros(num_proposals - iou.shape[0])])
-        ious.append(iou)
+        ious.append(iou.max().unsqueeze(0))
 
         # NOTE: get_3d_box() will return problematic bboxes
         #pred_bbox = construct_bbox_corners(pred_obb[0:3], pred_obb[3:6])
@@ -271,7 +262,7 @@ def get_eval(data_dict, config, reference, use_lang_classifier=False, use_oracle
 
     # store
     data_dict["ref_iou"] = ious
-    ious = torch.cat(ious, 0).reshape(-1).numpy()
+    ious = torch.cat(ious).numpy()
     data_dict["ref_iou_rate_0.25"] = ious[ious >= 0.25].shape[0] /ious.shape[0]
     data_dict["ref_iou_rate_0.5"] = ious[ious >= 0.5].shape[0] / ious.shape[0]
     #data_dict["ref_multiple_mask"] = multiple
