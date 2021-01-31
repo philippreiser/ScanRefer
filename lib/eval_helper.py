@@ -239,7 +239,9 @@ def get_eval(data_dict, config, reference, use_lang_classifier=False, use_oracle
                 if int(member_point) in correct_indices: 
                     iou[cluster_id] += 1
 
-        ious.append(iou.max().unsqueeze(0))
+        scene_iou = iou[proposal_batch_ids==i]
+        high_conf_cluster_pred = torch.argmax(cluster_preds[i])
+        ious.append(scene_iou[high_conf_cluster_pred].unsqueeze(0))
 
         # NOTE: get_3d_box() will return problematic bboxes
         #pred_bbox = construct_bbox_corners(pred_obb[0:3], pred_obb[3:6])

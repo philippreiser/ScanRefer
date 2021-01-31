@@ -233,7 +233,7 @@ def compute_reference_loss(data_dict, config):
 
     # reference loss
     criterion = SoftmaxRankingLoss()
-    loss = 0
+    loss = torch.tensor(0, dtype=torch.float).cuda()
     # TODO: vectorize - instead of double iterative approach
     # for each sample in batch
     cluster_labels = torch.zeros_like(cluster_preds).cuda()
@@ -260,18 +260,18 @@ def compute_reference_loss(data_dict, config):
         # select the correct ones 
         # in preds_instances the proposals aren't ordered batchwise! 
         # use proposal_batch_ids, preds_offsets to get correct window in preds_instances
-        correct_proposals = preds_offsets[:-1][proposal_batch_ids==i]
-        for j in range(len(correct_proposals)-1):
-            start_correct_proposals = correct_proposals[j]
-            end_correct_proposals = torch.nonzero(preds_offsets==correct_proposals[j])+1
-            end_correct_proposals = preds_offsets[end_correct_proposals]
+        batch_proposals = preds_offsets[:-1][proposal_batch_ids==i] # proposals of one scene
+        for j in range(len(batch_proposals)):
+            start_id_proposal = batch_proposals[j]
+            start_proposal_index = torch.nonzero(preds_offsets==batch_proposals[j])
+            end_id_proposal = preds_offsets[start_proposal_index+1]
             preds_instance_proposals = preds_instances[
-                start_correct_proposals:end_correct_proposals
+                start_id_proposal:end_id_proposal
                 ]
-            cluster_ids, member_points=preds_instance_proposals[:,0], preds_instance_proposals[:,1]
+            cluster_ids, member_points=preds_instance_proposals[:,0], preds_instance_proposals[:,1].long()
             for cluster_id, member_point in zip(cluster_ids, member_points):
                 numbSamplePerCluster[cluster_id] += 1
-                if int(member_point) in correct_indices: 
+                if member_point.long().cuda() in correct_indices.cuda(): 
                     # in preds_instances for every point there is one entry (one assigned cluster_id)
                     # I want all of them to count for one sample (the underlying scan)
                     # the cluster_id with the most counts will be the true label.
@@ -288,9 +288,12 @@ def compute_reference_loss(data_dict, config):
         max_elem = labels.max()
         # convert to one-hot-matrix with 0 on max per row
         # TODO: necessary if? -> # If no IoU with GT 
+        print("Max elem: ", max_elem)
         if max_elem != 0:
             labels = torch.floor(labels/max_elem)
         else:
+            break
+            print("Max elem = 0")
             labels = torch.zeros(len(labels)) # reset all counts
             # TODO: Sensible? Decoupling not completely given anymore! 
             #       All ones? (All zeros leads to low loss, because most preds are 0 --> we want loss increase)
@@ -309,7 +312,7 @@ def compute_reference_loss(data_dict, config):
 
     # TODO: check if cluster_id starts with 0
 
-    
+    print("Loss: ", loss)
     return loss, cluster_preds, cluster_labels
 
 def compute_lang_classification_loss(data_dict):
