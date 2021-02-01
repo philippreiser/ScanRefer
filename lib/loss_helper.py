@@ -249,7 +249,7 @@ def compute_reference_loss(data_dict, config):
                 len(gt_instances))[
                     gt_instances==target_inst_id[i]
                 ]
-            ).cuda()
+            )
         # nSamples is the number of points that are asigned to some clusters in one scene
         # NOTE: only works with an extra batch_size dimension
         #nSamples = preds_instances[i].shape[0] 
@@ -272,7 +272,7 @@ def compute_reference_loss(data_dict, config):
             cluster_ids, member_points=preds_instance_proposals[:,0], preds_instance_proposals[:,1].long()
             for cluster_id, member_point in zip(cluster_ids, member_points):
                 numbSamplePerCluster[cluster_id] += 1
-                if member_point.long().cuda() in correct_indices.cuda(): 
+                if member_point in correct_indices:
                     # in preds_instances for every point there is one entry (one assigned cluster_id)
                     # I want all of them to count for one sample (the underlying scan)
                     # the cluster_id with the most counts will be the true label.
