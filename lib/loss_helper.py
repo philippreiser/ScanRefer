@@ -270,17 +270,25 @@ def compute_reference_loss(data_dict, config):
                 start_id_proposal:end_id_proposal
                 ]
             cluster_ids, member_points=preds_instance_proposals[:,0], preds_instance_proposals[:,1].long()
-            for cluster_id, member_point in zip(cluster_ids, member_points):
-                numbSamplePerCluster[cluster_id] += 1
-                if member_point in correct_indices:
-                    # in preds_instances for every point there is one entry (one assigned cluster_id)
-                    # I want all of them to count for one sample (the underlying scan)
-                    # the cluster_id with the most counts will be the true label.
-                    # counts are defined as points being in the correct_indices (-> IoU)
-                    # use index instead of i if no batch_size, but all batches directly concatenated 
-                    # = what we first assumed would be how PG trains on multiple batches.
-                    #index = int(np.floor(j/nSamples))
-                    labels[cluster_id] += 1
+            cluster_id = cluster_ids[0]
+            numbSamplePerCluster[cluster_id] = cluster_ids.shape[0]
+            #labels[cluster_id] = 
+            #for cluster_id, member_point in zip(cluster_ids, member_points):
+            #    numbSamplePerCluster[cluster_id] += 1
+            #    if member_point in correct_indices:
+            #        # in preds_instances for every point there is one entry (one assigned cluster_id)
+            #        # I want all of them to count for one sample (the underlying scan)
+            #        # the cluster_id with the most counts will be the true label.
+            #        # counts are defined as points being in the correct_indices (-> IoU)
+            #        # use index instead of i if no batch_size, but all batches directly concatenated 
+            #        # = what we first assumed would be how PG trains on multiple batches.
+            #        #index = int(np.floor(j/nSamples))
+            #        labels[cluster_id] += 1
+            combined = torch.cat((member_points, correct_indices))
+            _, counts = combined.unique(return_counts=True)
+            numb_object_id_proposals = counts[counts>1].shape[0]
+            labels[cluster_id]=numb_object_id_proposals
+
         # union of points in real instance (gt) and respective pred instance
         # - labels to not have the intersection count double
         numbSamplePerCluster += len(correct_indices)-labels
