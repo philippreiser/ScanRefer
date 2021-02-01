@@ -162,7 +162,7 @@ def get_solver(args, dataloader):
 def func(args):
     # dataset
     args.prepare_epochs = cfg.prepare_epochs
-    scanrefer_train, scanrefer_val, all_scene_list = get_scanrefer(SCANREFER_TRAIN[:2], SCANREFER_VAL[:2], args.num_scenes)
+    scanrefer_train, scanrefer_val, all_scene_list = get_scanrefer(SCANREFER_TRAIN[1023:1024], SCANREFER_VAL[1023:1024], args.num_scenes) #
     scanrefer = {
         "train": scanrefer_train,
         "val": scanrefer_val
@@ -209,10 +209,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--tag", type=str, help="tag for the training, e.g. cuda_wl", default="")
     parser.add_argument("--gpu", type=str, help="gpu", default="2")
-    parser.add_argument("--batch_size", type=int, help="batch size", default=2)
-    parser.add_argument("--epoch", type=int, help="number of epochs", default=200)
-    parser.add_argument("--verbose", type=int, help="iterations of showing verbose", default=10)
-    parser.add_argument("--val_step", type=int, help="iterations of validating", default=2000)
+    parser.add_argument("--batch_size", type=int, help="batch size", default=1)
+    parser.add_argument("--epoch", type=int, help="number of epochs", default=50)
+    parser.add_argument("--verbose", type=int, help="iterations of showing verbose", default=1)#200
+    parser.add_argument("--val_step", type=int, help="iterations of validating", default=20000)#200
     parser.add_argument("--lr", type=float, help="learning rate", default=1e-3)
     parser.add_argument("--wd", type=float, help="weight decay", default=1e-5)
     parser.add_argument("--num_points", type=int, default=40000, help="Point Number [default: 40000]")

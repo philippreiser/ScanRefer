@@ -47,8 +47,8 @@ TRAIN:
   score_mode: 4 # mean
 
   pretrain_path: pretrained/pointgroup.pth
-  pretrain_module: [input_conv, unet, output_layer, offset,score_unet, score_outputlayer] # not included: [linear, offset_linear, score_linear]
-  fix_module: [input_conv, unet, output_layer, offset,score_unet, score_outputlayer] # not included: [linear, offset_linear, score_linear]
+  pretrain_module: [input_conv, unet, output_layer, offset,score_unet, score_outputlayer, linear, offset_linear, score_linear] # not included: []
+  fix_module: [] # not included: [linear, offset_linear, score_linear]
 
 GROUP:
   ### point grouping
@@ -57,7 +57,7 @@ GROUP:
   cluster_shift_meanActive: 300
   cluster_npoint_thre: 50 # 50
 
-  prepare_epochs: 0 # 128
+  prepare_epochs: -1 # 128
 
 TEST:
   split: val
