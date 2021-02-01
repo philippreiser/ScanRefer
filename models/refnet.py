@@ -148,7 +148,8 @@ class RefNet(nn.Module):
             data_dict['object_id'] = data_dict['object_id'].cuda()
             data_dict['instance_labels'] = data_dict['object_id'].cuda()
             data_dict['semantic_preds'] = preds['semantic_preds'].cuda()
-            data_dict['proposals_idx'], data_dict['proposals_offset'] = preds['proposals']
+            data_dict['proposals_idx'] = preds['proposals'][0].cuda()
+            data_dict['proposals_offset'] = preds['proposals'][1].cuda()
             data_dict['score_feats'] = preds['score_feats'].cuda()
             data_dict['aggregated_vote_features'] = preds['score_feats'].cuda()
 

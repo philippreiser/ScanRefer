@@ -40,7 +40,7 @@ class MatchModule(nn.Module):
         # NOTE: num_proposals is variable!
         features = data_dict['aggregated_vote_features'] # num_proposal, 128
         proposals_idx, proposals_offset = data_dict['proposals_idx'], data_dict['proposals_offset']
-        b_offsets = data_dict['offsets']
+        b_offsets = data_dict['offsets'].cuda()
         
         # PointGroup: 
         # for now no masking substitute

@@ -233,12 +233,14 @@ def get_eval(data_dict, config, reference, use_lang_classifier=False, use_oracle
             preds_instance_proposals = preds_instances[
                 start_correct_proposals:end_correct_proposals
                 ]
-            cluster_ids, member_points=preds_instance_proposals[:,0], preds_instance_proposals[:,1]
-            for cluster_id, member_point in zip(cluster_ids, member_points):
-                numbSamplePerCluster[cluster_id] += 1
-                if int(member_point) in correct_indices: 
-                    iou[cluster_id] += 1
-
+            
+            cluster_ids, member_points=preds_instance_proposals[:,0], preds_instance_proposals[:,1].long()
+            cluster_id = cluster_ids[0]
+            numbSamplePerCluster[cluster_id] = cluster_ids.shape[0]
+            combined = torch.cat((member_points, correct_indices))
+            _, counts = combined.unique(return_counts=True)
+            numb_object_id_proposals = counts[counts>1].shape[0]
+            iou[cluster_id]=numb_object_id_proposals
         scene_num_proposals = (proposal_batch_ids==i).sum()
         scene_iou = iou[proposal_batch_ids==i]
         high_conf_cluster_pred = torch.argmax(cluster_preds[i][:scene_num_proposals])
