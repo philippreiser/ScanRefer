@@ -244,7 +244,7 @@ class ScannetReferencePointGroupDataset(Dataset):
         lang_feats = torch.cat(lang_feats, 0).reshape((self.batch_size, 126, 300)) # float (B, 126, 300)
         lang_lens = torch.tensor(lang_lens, dtype=torch.int64) # float (B, 1)
         object_cats = torch.tensor(object_cats) # float (B, )
-        object_ids = torch.tensor(object_ids)
+        object_ids = torch.tensor(object_ids, dtype=torch.int64)
         load_time = torch.from_numpy(np.array(time.time() - start))[None]
         
         return {'locs': locs, 'locs_float': locs_float, 'voxel_locs': voxel_locs, 'p2v_map': p2v_map, 'v2p_map': v2p_map,

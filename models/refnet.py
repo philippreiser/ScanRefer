@@ -146,7 +146,7 @@ class RefNet(nn.Module):
         if not self.no_reference and (data_dict['epoch'] > cfg.prepare_epochs):
             # bridge important data for next computations
             data_dict['object_id'] = data_dict['object_id'].cuda()
-            data_dict['instance_labels'] = data_dict['object_id'].cuda()
+            data_dict['instance_labels'] = data_dict['instance_labels'].cuda()
             data_dict['semantic_preds'] = preds['semantic_preds'].cuda()
             data_dict['proposals_idx'] = preds['proposals'][0].cuda()
             data_dict['proposals_offset'] = preds['proposals'][1].cuda()
