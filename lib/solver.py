@@ -173,10 +173,9 @@ class Solver():
                 # feed 
                 self._feed(self.dataloader["train"], "train", epoch_id)
 
-                # TODO: when overfit works: save model
-                # self._log("saving last models...\n")
-                # model_root = os.path.join(CONF.PATH.OUTPUT, self.stamp)
-                # torch.save(self.model.state_dict(), os.path.join(model_root, "model_last.pth"))
+                self._log("saving last models...\n")
+                model_root = os.path.join(CONF.PATH.OUTPUT, self.stamp)
+                torch.save(self.model.state_dict(), os.path.join(model_root, "model_last.pth"))
 
                 # update lr scheduler
                 if self.lr_scheduler:
@@ -335,8 +334,6 @@ class Solver():
                 data_dict = self._forward(data_dict)
                 self._compute_loss(data_dict)
                 self.log[phase]["forward"].append(time.time() - start)
-                #print("phase: ", phase)
-                #print("Epoch: ", epoch_id," Loss: ", data_dict['loss'])
                 # backward
                 if phase == "train":
                     start = time.time()
@@ -375,7 +372,7 @@ class Solver():
                 iter_time = self.log[phase]["fetch"][-1]
                 iter_time += self.log[phase]["forward"][-1]
                 iter_time += self.log[phase]["backward"][-1]
-                # iter_time += self.log[phase]["eval"][-1] TODO
+                iter_time += self.log[phase]["eval"][-1]
                 self.log[phase]["iter_time"].append(iter_time)
                 if (self._global_iter_id + 1) % self.verbose == 0:
                     self._train_report(epoch_id)
@@ -423,10 +420,9 @@ class Solver():
                 self.best["iou_rate_0.5"] = np.mean(self.log[phase]["iou_rate_0.5"])
 
                 # save model
-                # self._log("saving best models...\n")
-                # model_root = os.path.join(CONF.PATH.OUTPUT, self.stamp)
-                # TODO: Save
-                #torch.save(self.model.state_dict(), os.path.join(model_root, "model.pth"))
+                self._log("saving best models...\n")
+                model_root = os.path.join(CONF.PATH.OUTPUT, self.stamp)
+                torch.save(self.model.state_dict(), os.path.join(model_root, "model.pth"))
 
     def _dump_log(self, phase):
         log = {
@@ -446,21 +442,19 @@ class Solver():
         self._best_report()
 
         # save check point
-        # self._log("saving checkpoint...\n")
-        #save_dict = {
-        #    "epoch": epoch_id,
-        #    "model_state_dict": self.model.state_dict(),
-        #    "optimizer_state_dict": self.optimizer.state_dict()
-        #}
-        #checkpoint_root = os.path.join(CONF.PATH.OUTPUT, self.stamp)
-        # TODO: Save
-        #torch.save(save_dict, os.path.join(checkpoint_root, "checkpoint.tar"))
+        self._log("saving checkpoint...\n")
+        save_dict = {
+            "epoch": epoch_id,
+            "model_state_dict": self.model.state_dict(),
+            "optimizer_state_dict": self.optimizer.state_dict()
+        }
+        checkpoint_root = os.path.join(CONF.PATH.OUTPUT, self.stamp)
+        torch.save(save_dict, os.path.join(checkpoint_root, "checkpoint.tar"))
 
         # save model
-        # self._log("saving last models...\n")
-        # model_root = os.path.join(CONF.PATH.OUTPUT, self.stamp)
-        # TODO: Save
-        #torch.save(self.model.state_dict(), os.path.join(model_root, "model_last.pth"))
+        self._log("saving last models...\n")
+        model_root = os.path.join(CONF.PATH.OUTPUT, self.stamp)
+        torch.save(self.model.state_dict(), os.path.join(model_root, "model_last.pth"))
 
         # export
         for phase in ["train", "val"]:

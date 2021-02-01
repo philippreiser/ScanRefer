@@ -288,17 +288,10 @@ def compute_reference_loss(data_dict, config):
         max_elem = labels.max()
         # convert to one-hot-matrix with 0 on max per row
         # TODO: necessary if? -> # If no IoU with GT 
-        print("Max elem: ", max_elem)
         if max_elem != 0:
             labels = torch.floor(labels/max_elem)
         else:
             break
-            print("Max elem = 0")
-            labels = torch.zeros(len(labels)) # reset all counts
-            # TODO: Sensible? Decoupling not completely given anymore! 
-            #       All ones? (All zeros leads to low loss, because most preds are 0 --> we want loss increase)
-            labels[target_inst_id] = 1 # If no IoU with GT 
-
         # scene-wise loss calucation 
         # labels is total_num_proposals long (same size as proposal_batch_ids)
         cluster_labels_scene = torch.FloatTensor(labels[proposal_batch_ids==i]).cuda()
@@ -312,7 +305,6 @@ def compute_reference_loss(data_dict, config):
 
     # TODO: check if cluster_id starts with 0
 
-    print("Loss: ", loss)
     return loss, cluster_preds, cluster_labels
 
 def compute_lang_classification_loss(data_dict):
