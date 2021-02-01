@@ -8,6 +8,7 @@ import torch.nn as nn
 import numpy as np
 import sys
 import os
+import time
 
 sys.path.append(os.path.join(os.getcwd(), "lib")) # HACK add the lib folder
 from utils.nn_distance import nn_distance, huber_loss
@@ -401,5 +402,6 @@ def get_loss(data_dict, config, detection=True, reference=True, use_lang_classif
     loss *= 10 # amplify
 
     data_dict['loss'] = loss
+    data_dict['ref_end'] = time.time()
 
     return loss, data_dict

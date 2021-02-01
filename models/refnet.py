@@ -3,6 +3,7 @@ import torch.nn as nn
 import numpy as np
 import sys
 import os
+import time
 
 sys.path.append(os.path.join(os.getcwd(), "lib")) # HACK add the lib folder
 #from models.backbone_module import Pointnet2Backbone
@@ -141,7 +142,7 @@ class RefNet(nn.Module):
 
         # forward loss 
         data_dict['pg_loss'] = loss
-
+        data_dict['pg_end'] = time.time()
         if not self.no_reference and (data_dict['epoch'] > cfg.prepare_epochs):
             # bridge important data for next computations
             data_dict['semantic_preds'] = preds['semantic_preds']
@@ -166,5 +167,6 @@ class RefNet(nn.Module):
 
             # --------- PROPOSAL MATCHING ---------
             data_dict = self.match(data_dict)
+            data_dict['match_end'] = time.time()
 
         return data_dict

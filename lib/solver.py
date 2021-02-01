@@ -31,6 +31,9 @@ ITER_REPORT_TEMPLATE = """
 [sco.] train_ref_acc: {train_ref_acc}
 [info] mean_fetch_time: {mean_fetch_time}s
 [info] mean_forward_time: {mean_forward_time}s
+[info] mean_pg_forward_time: {mean_pg_forward_time}s
+[info] mean_match_forward_time: {mean_match_forward_time}s
+[info] mean_ref_forward_time: {mean_ref_forward_time} +- {std_ref_forward_time}s
 [info] mean_backward_time: {mean_backward_time}s
 [info] mean_eval_time: {mean_eval_time}s
 [info] mean_iter_time: {mean_iter_time}s
@@ -208,6 +211,10 @@ class Solver():
             "eval": [],
             "fetch": [],
             "iter_time": [],
+            "pg_forward": [],
+            "match_forward": [],
+            "ref_forward": [],
+            "ref_forward_std": [],
             # loss (float, not torch.cuda.FloatTensor)
             "loss": [],
             "ref_loss": [],
@@ -334,6 +341,9 @@ class Solver():
                 data_dict = self._forward(data_dict)
                 self._compute_loss(data_dict)
                 self.log[phase]["forward"].append(time.time() - start)
+                self.log[phase]["pg_forward"].append(data_dict['pg_end'] - start)
+                self.log[phase]["match_forward"].append(data_dict['match_end'] - data_dict['pg_end'])
+                self.log[phase]["ref_forward"].append(data_dict['ref_end'] - data_dict['match_end'])
                 # backward
                 if phase == "train":
                     start = time.time()
@@ -378,7 +388,7 @@ class Solver():
                     self._train_report(epoch_id)
 
                 # evaluation
-                if self._global_iter_id % self.val_step == 0:
+                if (self._global_iter_id % self.val_step == 0) and self._global_iter_id!=0:
                     print("evaluating...")
                     # val
                     self._feed(self.dataloader["val"], "val", epoch_id)
@@ -464,6 +474,9 @@ class Solver():
         # compute ETA
         fetch_time = self.log["train"]["fetch"]
         forward_time = self.log["train"]["forward"]
+        pg_time = self.log["train"]["pg_forward"]
+        match_time = self.log["train"]["match_forward"]
+        ref_time = self.log["train"]["ref_forward"]
         backward_time = self.log["train"]["backward"]
         eval_time = self.log["train"]["eval"]
         iter_time = self.log["train"]["iter_time"]
@@ -499,6 +512,10 @@ class Solver():
             train_iou_rate_5=round(np.mean([v for v in self.log["train"]["iou_rate_0.5"]]), 5),
             mean_fetch_time=round(np.mean(fetch_time), 5),
             mean_forward_time=round(np.mean(forward_time), 5),
+            mean_pg_forward_time=round(np.mean(pg_time), 5),
+            mean_match_forward_time=round(np.mean(match_time), 5),
+            mean_ref_forward_time=round(np.mean(ref_time), 5),
+            std_ref_forward_time=round(np.std(ref_time), 5),
             mean_backward_time=round(np.mean(backward_time), 5),
             mean_eval_time=round(np.mean(eval_time), 5),
             mean_iter_time=round(np.mean(iter_time), 5),
