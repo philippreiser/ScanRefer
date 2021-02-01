@@ -145,10 +145,12 @@ class RefNet(nn.Module):
         data_dict['pg_end'] = time.time()
         if not self.no_reference and (data_dict['epoch'] > cfg.prepare_epochs):
             # bridge important data for next computations
-            data_dict['semantic_preds'] = preds['semantic_preds']
+            data_dict['object_id'] = data_dict['object_id'].cuda()
+            data_dict['instance_labels'] = data_dict['object_id'].cuda()
+            data_dict['semantic_preds'] = preds['semantic_preds'].cuda()
             data_dict['proposals_idx'], data_dict['proposals_offset'] = preds['proposals']
-            data_dict['score_feats'] = preds['score_feats']
-            data_dict['aggregated_vote_features'] = preds['score_feats']
+            data_dict['score_feats'] = preds['score_feats'].cuda()
+            data_dict['aggregated_vote_features'] = preds['score_feats'].cuda()
 
             #######################################
             #                                     #

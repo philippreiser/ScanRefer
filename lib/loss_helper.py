@@ -212,8 +212,8 @@ def compute_reference_loss(data_dict, config):
     # segmentation loss. (+ the same class can appear more than once)
     # hence we want to compare each cluster with the real cluster to find 
     # the best cluster. 
-    gt_instances = data_dict['instance_labels'] # (N)
-    target_inst_id = data_dict['object_id'] # (B)
+    gt_instances = data_dict['instance_labels'].cuda() # (N)
+    target_inst_id = data_dict['object_id'] # (B)#target_inst_id = torch.tensor(data_dict['object_id']).cuda() # (B)
     # as no extra batch_dim exists this gives the index of a next sample
     start_of_samples = data_dict['offsets'] # (B)
     proposal_batch_ids = data_dict['proposal_batch_ids'] # (nProposal + 1)
@@ -226,7 +226,7 @@ def compute_reference_loss(data_dict, config):
     
     # dim 1 for cluster_id, dim 2 for corresponding point idxs in N
     # sumNPoint: additional explanation in pointgroup.py
-    preds_instances = data_dict['proposals_idx'] # (sumNPoint, 2)
+    preds_instances = data_dict['proposals_idx'].cuda() # (sumNPoint, 2)
     preds_offsets = data_dict['proposals_offset'] # (nProposal + 1)
     batch_size, num_proposals = cluster_preds.shape
     total_num_proposals = len(preds_offsets)-1
@@ -249,7 +249,7 @@ def compute_reference_loss(data_dict, config):
                 len(gt_instances))[
                     gt_instances==target_inst_id[i]
                 ]
-            )
+            ).cuda()
         # nSamples is the number of points that are asigned to some clusters in one scene
         # NOTE: only works with an extra batch_size dimension
         #nSamples = preds_instances[i].shape[0] 
