@@ -31,9 +31,9 @@ ITER_REPORT_TEMPLATE = """
 [sco.] train_ref_acc: {train_ref_acc}
 [info] mean_fetch_time: {mean_fetch_time}s
 [info] mean_forward_time: {mean_forward_time}s
-[info] mean_pg_forward_time: {mean_pg_forward_time}s
-[info] mean_match_forward_time: {mean_match_forward_time}s
-[info] mean_ref_forward_time: {mean_ref_forward_time} +- {std_ref_forward_time}s
+[info]   mean_pg_forward_time: {mean_pg_forward_time}s
+[info]   mean_match_forward_time: {mean_match_forward_time}s
+[info]   mean_ref_loss_forward_time: {mean_ref_forward_time} +- {std_ref_forward_time}s
 [info] mean_backward_time: {mean_backward_time}s
 [info] mean_eval_time: {mean_eval_time}s
 [info] mean_iter_time: {mean_iter_time}s
@@ -342,8 +342,12 @@ class Solver():
                 self._compute_loss(data_dict)
                 self.log[phase]["forward"].append(time.time() - start)
                 self.log[phase]["pg_forward"].append(data_dict['pg_end'] - start)
-                self.log[phase]["match_forward"].append(data_dict['match_end'] - data_dict['pg_end'])
-                self.log[phase]["ref_forward"].append(data_dict['ref_end'] - data_dict['match_end'])
+                if "match_forward" in data_dict.keys():
+                    self.log[phase]["match_forward"].append(data_dict['match_end'] - data_dict['pg_end'])
+                    self.log[phase]["ref_forward"].append(data_dict['ref_end'] - data_dict['match_end'])
+                else:
+                    self.log[phase]["match_forward"].append(0)
+                    self.log[phase]["ref_forward"].append(0)
                 # backward
                 if phase == "train":
                     start = time.time()
@@ -353,7 +357,7 @@ class Solver():
             # eval
             start = time.time()
             
-            if epoch_id > self.prepare_epochs:
+            if epoch_id > self.prepare_epochs and self.reference:
                 self._eval(data_dict)
             self.log[phase]["eval"].append(time.time() - start)
 

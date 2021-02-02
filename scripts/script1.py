@@ -114,6 +114,32 @@ def get_model(args):
         no_reference=args.no_reference,
         batch_size=args.batch_size
     )    
+    # trainable model
+    if args.use_pretrained:
+        # load model
+        print("loading pretrained PointGroup...")
+        pretrained_model = RefNet(
+            num_class=DC.num_class,
+            num_heading_bin=DC.num_heading_bin,
+            num_size_cluster=DC.num_size_cluster,
+            mean_size_arr=DC.mean_size_arr,
+            num_proposal=args.num_proposals,
+            input_feature_dim=input_channels,
+            use_bidir=args.use_bidir,
+            no_reference=True
+        )
+        pretrained_path = os.path.join(CONF.PATH.OUTPUT, args.use_pretrained, "model_last.pth")
+        pretrained_model.load_state_dict(torch.load(pretrained_path), strict=False)
+
+        # mount
+        model.pointgroup = pretrained_model.pointgroup
+        print("loaded pretrained PG model: ", pretrained_path)
+        if args.no_pg:
+            # freeze PG
+            for param in model.pointgroup.parameters():
+                param.requires_grad = False
+            print("freezed pg params")
+    
     # to CUDA
     model = model.cuda()
 
@@ -133,11 +159,15 @@ def get_solver(args, dataloader):
     root = os.path.join(CONF.PATH.OUTPUT, stamp)
     os.makedirs(root, exist_ok=True)
 
-    # scheduler parameters for training solely the detection pipeline
-    LR_DECAY_STEP = [80, 120, 160] if args.no_reference else None
-    LR_DECAY_RATE = 0.1 if args.no_reference else None
-    BN_DECAY_STEP = 20 if args.no_reference else None
-    BN_DECAY_RATE = 0.5 if args.no_reference else None
+    # scheduler parameters for training solely the detection pipeline TODO:?
+    LR_DECAY_STEP = None
+    LR_DECAY_RATE = None
+    BN_DECAY_STEP = None
+    BN_DECAY_RATE = None
+    #LR_DECAY_STEP = [80, 120, 160] if args.no_reference else None
+    #LR_DECAY_RATE = 0.1 if args.no_reference else None
+    #BN_DECAY_STEP = 20 if args.no_reference else None
+    #BN_DECAY_RATE = 0.5 if args.no_reference else None
 
     solver = Solver(
         model=model, 
@@ -162,7 +192,7 @@ def get_solver(args, dataloader):
 def func(args):
     # dataset
     args.prepare_epochs = cfg.prepare_epochs
-    scanrefer_train, scanrefer_val, all_scene_list = get_scanrefer(SCANREFER_TRAIN[1023:1028], SCANREFER_VAL[1023:1028], args.num_scenes) #
+    scanrefer_train, scanrefer_val, all_scene_list = get_scanrefer(SCANREFER_TRAIN, SCANREFER_VAL, args.num_scenes)
     scanrefer = {
         "train": scanrefer_train,
         "val": scanrefer_val
@@ -210,9 +240,9 @@ if __name__ == "__main__":
     parser.add_argument("--tag", type=str, help="tag for the training, e.g. cuda_wl", default="")
     parser.add_argument("--gpu", type=str, help="gpu", default="2")
     parser.add_argument("--batch_size", type=int, help="batch size", default=1)
-    parser.add_argument("--epoch", type=int, help="number of epochs", default=1)
-    parser.add_argument("--verbose", type=int, help="iterations of showing verbose", default=5)#200
-    parser.add_argument("--val_step", type=int, help="iterations of validating", default=20000)#200
+    parser.add_argument("--epoch", type=int, help="number of epochs", default=100)
+    parser.add_argument("--verbose", type=int, help="iterations of showing verbose", default=10)#200
+    parser.add_argument("--val_step", type=int, help="iterations of validating", default=1000)#200
     parser.add_argument("--lr", type=float, help="learning rate", default=1e-3)
     parser.add_argument("--wd", type=float, help="weight decay", default=1e-5)
     parser.add_argument("--num_points", type=int, default=40000, help="Point Number [default: 40000]")
@@ -224,6 +254,7 @@ if __name__ == "__main__":
     parser.add_argument("--no_lang_cls", action="store_true", help="Do NOT use language classifier.")
     parser.add_argument("--no_detection", action="store_true", help="Do NOT train the detection module.")
     parser.add_argument("--no_reference", action="store_true", help="Do NOT train the localization module.")
+    parser.add_argument("--no_pg", action="store_true", help="Do NOT train the pg module.")
     parser.add_argument("--use_color", action="store_true", help="Use RGB color in input.")
     parser.add_argument("--use_normal", action="store_true", help="Use RGB color in input.")
     parser.add_argument("--use_multiview", action="store_true", help="Use multiview images.")
@@ -232,6 +263,8 @@ if __name__ == "__main__":
     parser.add_argument("--use_checkpoint", type=str, help="Specify the checkpoint root", default="")
     parser.add_argument("--use_sparseconv", action="store_true", help="Use SparseConv Backbone.")
     args = parser.parse_args()
+    #args.use_pretrained="2021-02-02_21-07-32"
+    args.no_reference = True
 
     # setting
     os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
