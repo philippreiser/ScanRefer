@@ -240,12 +240,17 @@ def get_eval(data_dict, config, reference, use_lang_classifier=False, use_oracle
             combined = torch.cat((member_points, correct_indices))
             _, counts = combined.unique(return_counts=True)
             numb_object_id_proposals = counts[counts>1].shape[0]
-            iou[cluster_id]=numb_object_id_proposals
+            iou[cluster_id]=numb_object_id_proposals/(combined.shape[0]-numb_object_id_proposals)
+            
         scene_num_proposals = (proposal_batch_ids==i).sum()
         scene_iou = iou[proposal_batch_ids==i]
-        high_conf_cluster_pred = torch.argmax(cluster_preds[i][:scene_num_proposals])
-        ious.append(scene_iou[high_conf_cluster_pred].unsqueeze(0))
-
+        scene_iou = scene_iou
+        cluster_preds_scene = cluster_preds[i][:scene_num_proposals]
+        if cluster_preds_scene.shape[0] > 0:
+            high_conf_cluster_pred = torch.argmax(cluster_preds_scene)
+            ious.append(scene_iou[high_conf_cluster_pred].unsqueeze(0))
+        else:
+            ious.append(0)
         # NOTE: get_3d_box() will return problematic bboxes
         #pred_bbox = construct_bbox_corners(pred_obb[0:3], pred_obb[3:6])
         #gt_bbox = construct_bbox_corners(gt_obb[0:3], gt_obb[3:6])
