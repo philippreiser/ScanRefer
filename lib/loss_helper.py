@@ -311,7 +311,7 @@ def compute_lang_classification_loss(data_dict):
 
     return loss
 
-def get_loss(data_dict, config, detection=True, reference=True, use_lang_classifier=False):
+def get_loss(data_dict, config, detection=True, reference=True, pg=True, use_lang_classifier=False):
     """ Loss functions
 
     Args:
@@ -395,7 +395,10 @@ def get_loss(data_dict, config, detection=True, reference=True, use_lang_classif
     # add the loss calculated during the RefNet.forward by calling pointgroup.model_fn
     # TODO: weight set to 0.8 for now (so that weights sum up to 1)
     # default: 0.1, 0.1, 0.8
-    loss = 0.1*data_dict["ref_loss"] + 0.1*data_dict["lang_loss"] + 0.8 * data_dict['pg_loss']
+    if pg:
+        loss = 0.1*data_dict["ref_loss"] + 0.1*data_dict["lang_loss"] + 0.8 * data_dict['pg_loss']
+    else:
+        loss = 0.6*data_dict["ref_loss"] + 0.4*data_dict["lang_loss"]
     loss *= 10 # amplify
 
     data_dict['loss'] = loss

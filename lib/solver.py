@@ -69,7 +69,7 @@ BEST_REPORT_TEMPLATE = """
 
 class Solver():
     def __init__(self, model, config, dataloader, optimizer, stamp, val_step=10, 
-    detection=True, reference=True, use_lang_classifier=True,
+    detection=True, reference=True, pg=True, use_lang_classifier=True,
     lr_decay_step=None, lr_decay_rate=None, bn_decay_step=None, bn_decay_rate=None,
     prepare_epochs=-1):
 
@@ -85,6 +85,7 @@ class Solver():
 
         self.detection = detection
         self.reference = reference
+        self.pg = pg
         self.use_lang_classifier = use_lang_classifier
 
         self.lr_decay_step = lr_decay_step
@@ -258,6 +259,7 @@ class Solver():
             config=self.config, 
             detection=self.detection,
             reference=self.reference, 
+            pg=self.pg,
             use_lang_classifier=self.use_lang_classifier
         )
 
@@ -342,7 +344,7 @@ class Solver():
                 self._compute_loss(data_dict)
                 self.log[phase]["forward"].append(time.time() - start)
                 self.log[phase]["pg_forward"].append(data_dict['pg_end'] - start)
-                if "match_forward" in data_dict.keys():
+                if epoch_id > self.prepare_epochs and self.reference:
                     self.log[phase]["match_forward"].append(data_dict['match_end'] - data_dict['pg_end'])
                     self.log[phase]["ref_forward"].append(data_dict['ref_end'] - data_dict['match_end'])
                 else:
@@ -407,7 +409,7 @@ class Solver():
 
         # check best
         if phase == "val":
-            cur_criterion = "ref_acc" #TODO set back to "iou_rate_0.5"
+            cur_criterion = "iou_rate_0.5" #TODO set back to "iou_rate_0.5"
             cur_best = np.mean(self.log[phase][cur_criterion])
             if cur_best > self.best[cur_criterion]:
                 self._log("best {} achieved: {}".format(cur_criterion, cur_best))
