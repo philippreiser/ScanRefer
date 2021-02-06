@@ -106,9 +106,7 @@ class ScannetReferencePointGroupDataset(Dataset):
         for i, idx in enumerate(id):
             scene_id = self.scanrefer[idx]["scene_id"]
             object_id = int(self.scanrefer[idx]["object_id"])
-            #print("Scene id: ", scene_id, " object id: ", object_id)
             object_name = " ".join(self.scanrefer[idx]["object_name"].split("_"))
-            #print(object_name)
             ann_id = self.scanrefer[idx]["ann_id"]
             
             # get language features
