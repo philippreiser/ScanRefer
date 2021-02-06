@@ -57,7 +57,7 @@ def get_scannet_scene_list(split):
 
     return scene_list
 
-def get_scanrefer(scanrefer_train, scanrefer_val, num_scenes=-1, overfit=False):
+def get_scanrefer(scanrefer_train, scanrefer_val, num_scenes=-1, overfit=False, start_scene_id=0):
     if args.no_reference:
         train_scene_list = get_scannet_scene_list("train")
         new_scanrefer_train = []
@@ -82,7 +82,7 @@ def get_scanrefer(scanrefer_train, scanrefer_val, num_scenes=-1, overfit=False):
             assert len(train_scene_list) >= num_scenes
         
         # slice train_scene_list
-        train_scene_list = train_scene_list[:num_scenes]
+        train_scene_list = train_scene_list[start_scene_id:start_scene_id+num_scenes]
 
         # filter data in chosen scenes
         new_scanrefer_train = []
@@ -91,7 +91,7 @@ def get_scanrefer(scanrefer_train, scanrefer_val, num_scenes=-1, overfit=False):
                 new_scanrefer_train.append(data)
 
         # slice val_scene_list
-        val_scene_list = val_scene_list[:num_scenes]
+        val_scene_list = val_scene_list[start_scene_id:start_scene_id+num_scenes]
 
         # filter data in chosen scenes
         new_scanrefer_val = []
@@ -202,7 +202,7 @@ def get_solver(args, dataloader):
 def func(args):
     # dataset
     args.prepare_epochs = cfg.prepare_epochs
-    scanrefer_train, scanrefer_val, all_scene_list = get_scanrefer(SCANREFER_TRAIN, SCANREFER_VAL, args.num_scenes, args.overfit)
+    scanrefer_train, scanrefer_val, all_scene_list = get_scanrefer(SCANREFER_TRAIN, SCANREFER_VAL, args.num_scenes, args.overfit, args.start_scene_id)
     scanrefer = {
         "train": scanrefer_train,
         "val": scanrefer_val
@@ -217,7 +217,6 @@ def func(args):
     }
     solver, num_params, root = get_solver(args, dataloader)
     solver(args.epoch, args.verbose)
-
     """input_channels = int(args.use_multiview) * 128 + int(args.use_normal) * 3 + int(args.use_color) * 3 + int(not args.no_height)
     model = RefNet(
         num_class=DC.num_class,
@@ -248,16 +247,17 @@ def func(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--tag", type=str, help="tag for the training, e.g. cuda_wl", default="")
-    parser.add_argument("--gpu", type=str, help="gpu", default="1")
-    parser.add_argument("--batch_size", type=int, help="batch size", default=1) # SET: 8
-    parser.add_argument("--epoch", type=int, help="number of epochs", default=350)
-    parser.add_argument("--verbose", type=int, help="iterations of showing verbose", default=10)
+    parser.add_argument("--gpu", type=str, help="gpu", default="3")
+    parser.add_argument("--batch_size", type=int, help="batch size", default=7) # SET: 8
+    parser.add_argument("--epoch", type=int, help="number of epochs", default=100) #SET: 50
+    parser.add_argument("--verbose", type=int, help="iterations of showing verbose", default=20)
     parser.add_argument("--val_step", type=int, help="iterations of validating", default=5000)#5000
     parser.add_argument("--lr", type=float, help="learning rate", default=1e-3)
     parser.add_argument("--wd", type=float, help="weight decay", default=1e-5)
     parser.add_argument("--num_points", type=int, default=40000, help="Point Number [default: 40000]")
     parser.add_argument("--num_proposals", type=int, default=256, help="Proposal number [default: 256]")
     parser.add_argument("--num_scenes", type=int, default=-1, help="Number of scenes [default: -1]")
+    parser.add_argument("--start_scene_id", type=int, default=100, help="Start with scene id [default: 0]")
     parser.add_argument("--overfit", action="store_true", help="Train only on one element of the dataloader.")
     parser.add_argument("--seed", type=int, default=42, help="random seed")
     parser.add_argument("--no_height", action="store_true", help="Do NOT use height signal in input.")
@@ -266,6 +266,7 @@ if __name__ == "__main__":
     parser.add_argument("--no_detection", action="store_true", help="Do NOT train the detection module.")
     parser.add_argument("--no_reference", action="store_true", help="Do NOT train the localization module.")
     parser.add_argument("--no_pg", action="store_true", help="Do NOT train the pg module.")
+    parser.add_argument("--use_proposal_gt", action="store_true", help="Use GT as input to match module.")
     parser.add_argument("--use_color", action="store_true", help="Use RGB color in input.")
     parser.add_argument("--use_normal", action="store_true", help="Use RGB color in input.")
     parser.add_argument("--use_multiview", action="store_true", help="Use multiview images.")
@@ -274,10 +275,10 @@ if __name__ == "__main__":
     parser.add_argument("--use_checkpoint", type=str, help="Specify the checkpoint root", default="")
     parser.add_argument("--use_sparseconv", action="store_true", help="Use SparseConv Backbone.")
     args = parser.parse_args()
-    args.tag = "ref_loss_overfit_scene_0"
-    args.overfit = True
-    #args.num_scenes = 1
-    args.use_pretrained="2021-02-05_09-50-50_PG_OVERFIT_SCENE_0"
+    args.tag = "sr_scene_{}_batch_size_{}".format(args.start_scene_id, args.batch_size) # "sr_full_dataset"
+    args.overfit = False
+    args.num_scenes = 1 # -1
+    args.use_pretrained= "2021-02-06_08-09-18_PG_RESTART_EPOCH52"
     args.no_pg = True
     args.no_reference = False
 
