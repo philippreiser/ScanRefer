@@ -106,7 +106,9 @@ class ScannetReferencePointGroupDataset(Dataset):
         for i, idx in enumerate(id):
             scene_id = self.scanrefer[idx]["scene_id"]
             object_id = int(self.scanrefer[idx]["object_id"])
+            #print("Scene id: ", scene_id, " object id: ", object_id)
             object_name = " ".join(self.scanrefer[idx]["object_name"].split("_"))
+            #print(object_name)
             ann_id = self.scanrefer[idx]["ann_id"]
             
             # get language features
@@ -208,7 +210,7 @@ class ScannetReferencePointGroupDataset(Dataset):
 
             locs.append(torch.cat([torch.LongTensor(xyz.shape[0], 1).fill_(i), torch.from_numpy(xyz).long()], 1))
             locs_float.append(torch.from_numpy(xyz_middle))
-            feats.append(torch.from_numpy(rgb) + torch.randn(3) * 0.1)
+            feats.append(torch.from_numpy(rgb)) #+ torch.randn(3) * 0.1)
             labels.append(torch.from_numpy(label))
             instance_labels.append(torch.from_numpy(instance_label.astype(np.int64)))
 
