@@ -237,6 +237,8 @@ class Solver():
     def _set_phase(self, phase):
         if phase == "train":
             self.model.train()
+            if not self.pg:
+                self.model.pointgroup = self.model.pointgroup.eval()
         elif phase == "val":
             self.model.eval()
         else:
