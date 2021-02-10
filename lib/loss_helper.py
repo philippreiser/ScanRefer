@@ -302,7 +302,7 @@ def compute_reference_loss(data_dict, config):
     #cluster_labels = torch.FloatTensor(labels).cuda()
 
     # TODO: check if cluster_id starts with 0
-
+    loss /= batch_size
     return loss, cluster_preds, cluster_labels
 
 def compute_lang_classification_loss(data_dict):
@@ -311,7 +311,7 @@ def compute_lang_classification_loss(data_dict):
 
     return loss
 
-def get_loss(data_dict, config, detection=True, reference=True, pg=True, use_lang_classifier=False):
+def get_loss(data_dict, config, detection=True, reference=True, pg=True, use_lang_classifier=False, loss_weights=[0.1, 0.1, 0.8]):
     """ Loss functions
 
     Args:
@@ -396,11 +396,13 @@ def get_loss(data_dict, config, detection=True, reference=True, pg=True, use_lan
     # TODO: weight set to 0.8 for now (so that weights sum up to 1)
     # default: 0.1, 0.1, 0.8
     if pg:
-        loss = 0.1*data_dict["ref_loss"] + 0.1*data_dict["lang_loss"] + 0.8 * data_dict['pg_loss']
+        loss = loss_weights[0]*data_dict["ref_loss"] + loss_weights[1]*data_dict["lang_loss"] + loss_weights[2] * data_dict['pg_loss']
     else:
         loss = 0.6*data_dict["ref_loss"] + 0.4*data_dict["lang_loss"]
     loss *= 10 # amplify
-
+    print("**********")
+    print("Ref Loss: ", data_dict["ref_loss"])
+    print("**********")
     data_dict['loss'] = loss
     data_dict['ref_end'] = time.time()
 

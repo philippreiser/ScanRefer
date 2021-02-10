@@ -69,9 +69,9 @@ BEST_REPORT_TEMPLATE = """
 
 class Solver():
     def __init__(self, model, config, dataloader, optimizer, stamp, val_step=10, 
-    detection=True, reference=True, pg=True, use_lang_classifier=True,
+    detection=True, reference=True, pg=True, fix_pg_input=False, use_lang_classifier=True,
     lr_decay_step=None, lr_decay_rate=None, bn_decay_step=None, bn_decay_rate=None,
-    prepare_epochs=-1):
+    prepare_epochs=-1, loss_weights=[0.1, 0.1, 0.8]):
 
         self.epoch = 0                    # set in __call__
         self.verbose = 0                  # set in __call__
@@ -86,6 +86,7 @@ class Solver():
         self.detection = detection
         self.reference = reference
         self.pg = pg
+        self.fix_pg_input = fix_pg_input
         self.use_lang_classifier = use_lang_classifier
 
         self.lr_decay_step = lr_decay_step
@@ -94,6 +95,7 @@ class Solver():
         self.bn_decay_rate = bn_decay_rate
 
         self.prepare_epochs = prepare_epochs
+        self.loss_weights = loss_weights
 
         self.best = {
             "epoch": 0,
@@ -262,7 +264,8 @@ class Solver():
             detection=self.detection,
             reference=self.reference, 
             pg=self.pg,
-            use_lang_classifier=self.use_lang_classifier
+            use_lang_classifier=self.use_lang_classifier,
+            loss_weights=self.loss_weights
         )
 
         # dump
@@ -312,8 +315,14 @@ class Solver():
             #     data_dict[key] = data_dict[key].cuda()
 
             # only lang_feat has to be moved to cuda
+            if self.fix_pg_input:
+                if self._global_iter_id == 0:
+                    self.first_data_dict = data_dict
+                else:
+                    data_dict = self.first_data_dict
             data_dict['lang_feat'] = data_dict['lang_feat'].cuda()
             data_dict['object_cat'] = data_dict['object_cat'].cuda()
+            data_dict['_global_iter'] = self._global_iter_id
             # initialize the running loss
             self._running_log = {
                 # loss

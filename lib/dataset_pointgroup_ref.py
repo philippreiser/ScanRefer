@@ -46,7 +46,8 @@ class ScannetReferencePointGroupDataset(Dataset):
         max_npoint=250000,
         batch_size=1,
         mode=4,
-        train_workers=4):
+        train_workers=4,
+        shuffle_dataloader=True):
 
         self.scanrefer = scanrefer
         self.scanrefer_all_scene = scanrefer_all_scene # all scene_ids in scanrefer
@@ -64,6 +65,7 @@ class ScannetReferencePointGroupDataset(Dataset):
         self.batch_size = batch_size
         self.mode = mode
         self.train_workers = train_workers
+        self.shuffle_dataloader = shuffle_dataloader
 
         # load data
         self._load_data()
@@ -77,7 +79,7 @@ class ScannetReferencePointGroupDataset(Dataset):
     def trainLoader(self):
         train_set = list(range(len(self.scanrefer)))
         self.train_data_loader = DataLoader(train_set, batch_size=self.batch_size, collate_fn=self.trainMerge, num_workers=self.train_workers,
-                                            shuffle=True, sampler=None, drop_last=True, pin_memory=True)
+                                            shuffle=self.shuffle_dataloader, sampler=None, drop_last=True, pin_memory=True)
 
 
     def trainMerge(self, id):
@@ -146,6 +148,9 @@ class ScannetReferencePointGroupDataset(Dataset):
             #     height = point_cloud[:,2] - floor_height
             #     point_cloud = np.concatenate([point_cloud, np.expand_dims(height, 1)],1) 
             
+            # Prepare_data_inst.py (PG)
+            point_cloud = np.ascontiguousarray(point_cloud - point_cloud.mean(0))
+            pcl_color = np.ascontiguousarray(pcl_color[:, 3:6]) / 127.5 - 1
             #TODO: Random Sampling
             point_cloud, choices = random_sampling(point_cloud, self.num_points, return_choices=True)        
             instance_label = instance_label[choices]
@@ -326,7 +331,7 @@ class ScannetReferencePointGroupDataset(Dataset):
         full_scale = np.array([self.full_scale[1]] * 3)
         room_range = xyz.max(0) - xyz.min(0)
         while (valid_idxs.sum() > self.max_npoint):
-            offset = np.clip(full_scale - room_range + 0.001, None, 0) * np.random.rand(3)
+            offset = np.clip(full_scale - room_range + 0.001, None, 0) #* np.random.rand(3)
             xyz_offset = xyz + offset
             valid_idxs = (xyz_offset.min(1) >= 0) * ((xyz_offset < full_scale).sum(1) == 3)
             full_scale[:2] -= 32

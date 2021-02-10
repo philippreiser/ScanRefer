@@ -9,14 +9,16 @@ import os
 
 def get_parser():
     parser = argparse.ArgumentParser(description='Point Cloud Segmentation')
-    parser.add_argument('--config', type=str, default='config/pointgroup_default_scannet.yaml', help='path to config file')
+    #parser.add_argument('--config', type=str, default='config/pointgroup_default_scannet.yaml', help='path to config file')
 
     ### pretrain
-    parser.add_argument('--pretrain', type=str, default='', help='path to pretrain model')
+    #parser.add_argument('--pretrain', type=str, default='', help='path to pretrain model')
 
-    args_cfg = parser.parse_args()
-    assert args_cfg.config is not None
-    with open(args_cfg.config, 'r') as f:
+    args_cfg = argparse.Namespace()
+    config = 'config/pointgroup_default_scannet.yaml'
+    setattr(args_cfg, "config", config)
+    assert config is not None
+    with open(config, 'r') as f:
         config = yaml.load(f)
     for key in config:
         for k, v in config[key].items():

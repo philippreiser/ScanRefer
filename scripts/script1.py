@@ -23,7 +23,6 @@ from lib.solver import Solver
 from lib.config import CONF
 from models.refnet import RefNet
 from lib.pointgroup_ops.functions import pointgroup_ops
-from util.config import cfg
 from util.log import logger
 import util.utils as utils
 from lib.loss_helper import get_loss
@@ -44,7 +43,9 @@ def get_dataloader(args, scanrefer, all_scene_list, split, config, augment, data
         use_color=args.use_color, 
         use_normal=args.use_normal, 
         use_multiview=args.use_multiview,
-        batch_size=args.batch_size
+        batch_size=args.batch_size,
+        data_augmentation = args.data_augmentation,
+        shuffle_dataloader = args.shuffle_dataloader
     )
     # dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True)
     # dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=False, num_workers=4) # Set shuffle=True
@@ -57,7 +58,7 @@ def get_scannet_scene_list(split):
 
     return scene_list
 
-def get_scanrefer(scanrefer_train, scanrefer_val, num_scenes=-1, overfit=False, start_scene_id=0):
+def get_scanrefer(scanrefer_train, scanrefer_val, num_scenes=-1, overfit=False, start_scene_id=0, num_samples=-1):
     if args.no_reference:
         train_scene_list = get_scannet_scene_list("train")
         new_scanrefer_train = []
@@ -104,6 +105,9 @@ def get_scanrefer(scanrefer_train, scanrefer_val, num_scenes=-1, overfit=False, 
     if overfit:
         new_scanrefer_train = new_scanrefer_train[0:1]
         new_scanrefer_val = new_scanrefer_val[0:1]
+    if num_samples>-1:
+        new_scanrefer_train = new_scanrefer_train[:num_samples]
+        new_scanrefer_val = new_scanrefer_val[:num_samples]
     print("train on {} samples and val on {} samples".format(len(new_scanrefer_train), len(new_scanrefer_val)))
 
     return new_scanrefer_train, new_scanrefer_val, all_scene_list
@@ -121,7 +125,8 @@ def get_model(args):
         use_lang_classifier=(not args.no_lang_cls),
         use_bidir=args.use_bidir,
         no_reference=args.no_reference,
-        batch_size=args.batch_size
+        batch_size=args.batch_size,
+        fix_match_module_input=args.fix_match_module_input
     )    
     # trainable model
     if args.use_pretrained:
@@ -137,7 +142,10 @@ def get_model(args):
             use_bidir=args.use_bidir,
             no_reference=True
         )
-        pretrained_path = os.path.join(CONF.PATH.OUTPUT, args.use_pretrained, "model_last.pth")
+        if args.use_pretrained[-4:]!=".pth":
+            pretrained_path = os.path.join(CONF.PATH.OUTPUT, args.use_pretrained, "model_last.pth")
+        else:
+            pretrained_path = os.path.join(CONF.PATH.BASE, args.use_pretrained)
         pretrained_model.load_state_dict(torch.load(pretrained_path), strict=False)
 
         # mount
@@ -167,7 +175,8 @@ def get_solver(args, dataloader):
     if args.tag: stamp += "_"+args.tag.upper()
     root = os.path.join(CONF.PATH.OUTPUT, stamp)
     os.makedirs(root, exist_ok=True)
-
+    with open(os.path.join(root,'commandline_args.txt'), 'w') as f:
+        json.dump(args.__dict__, f, indent=2)
     # scheduler parameters for training solely the detection pipeline TODO:?
     LR_DECAY_STEP = None
     LR_DECAY_RATE = None
@@ -188,12 +197,14 @@ def get_solver(args, dataloader):
         detection=not args.no_detection,
         reference=not args.no_reference, 
         pg = not args.no_pg,
+        fix_pg_input = args.fix_pg_input,
         use_lang_classifier=not args.no_lang_cls,
         lr_decay_step=LR_DECAY_STEP,
         lr_decay_rate=LR_DECAY_RATE,
         bn_decay_step=BN_DECAY_STEP,
         bn_decay_rate=BN_DECAY_RATE,
-        prepare_epochs=args.prepare_epochs
+        prepare_epochs=args.prepare_epochs,
+        loss_weights=args.loss_weights
     )
     num_params = get_num_params(model)
     return solver, num_params, root
@@ -201,8 +212,7 @@ def get_solver(args, dataloader):
 
 def func(args):
     # dataset
-    args.prepare_epochs = cfg.prepare_epochs
-    scanrefer_train, scanrefer_val, all_scene_list = get_scanrefer(SCANREFER_TRAIN, SCANREFER_VAL, args.num_scenes, args.overfit, args.start_scene_id)
+    scanrefer_train, scanrefer_val, all_scene_list = get_scanrefer(SCANREFER_TRAIN, SCANREFER_VAL, args.num_scenes, args.overfit, args.start_scene_id, args.num_samples)
     scanrefer = {
         "train": scanrefer_train,
         "val": scanrefer_val
@@ -247,9 +257,9 @@ def func(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--tag", type=str, help="tag for the training, e.g. cuda_wl", default="")
-    parser.add_argument("--gpu", type=str, help="gpu", default="3")
-    parser.add_argument("--batch_size", type=int, help="batch size", default=7) # SET: 8
-    parser.add_argument("--epoch", type=int, help="number of epochs", default=100) #SET: 50
+    parser.add_argument("--gpu", type=str, help="gpu", default="0")
+    parser.add_argument("--batch_size", type=int, help="batch size", default=6) # SET: 8
+    parser.add_argument("--epoch", type=int, help="number of epochs", default=50) #SET: 50
     parser.add_argument("--verbose", type=int, help="iterations of showing verbose", default=20)
     parser.add_argument("--val_step", type=int, help="iterations of validating", default=5000)#5000
     parser.add_argument("--lr", type=float, help="learning rate", default=1e-3)
@@ -257,7 +267,8 @@ if __name__ == "__main__":
     parser.add_argument("--num_points", type=int, default=40000, help="Point Number [default: 40000]")
     parser.add_argument("--num_proposals", type=int, default=256, help="Proposal number [default: 256]")
     parser.add_argument("--num_scenes", type=int, default=-1, help="Number of scenes [default: -1]")
-    parser.add_argument("--start_scene_id", type=int, default=100, help="Start with scene id [default: 0]")
+    parser.add_argument("--num_samples", type=int, default=-1, help="Number of samples [default: -1]")
+    parser.add_argument("--start_scene_id", type=int, default=0, help="Start with scene id [default: 0]")
     parser.add_argument("--overfit", action="store_true", help="Train only on one element of the dataloader.")
     parser.add_argument("--seed", type=int, default=42, help="random seed")
     parser.add_argument("--no_height", action="store_true", help="Do NOT use height signal in input.")
@@ -274,13 +285,26 @@ if __name__ == "__main__":
     parser.add_argument("--use_pretrained", type=str, help="Specify the folder name containing the pretrained detection module.")
     parser.add_argument("--use_checkpoint", type=str, help="Specify the checkpoint root", default="")
     parser.add_argument("--use_sparseconv", action="store_true", help="Use SparseConv Backbone.")
+    parser.add_argument("--prepare_epochs", type=int, help="number of prepare_epochs for PG", default=-1)
+    parser.add_argument('--loss_weights', action='append', type=float, help='Loss weights [0.1, 0.1, 0.8]')
+    ## Debug Args
+    parser.add_argument("--shuffle_dataloader", action="store_true", help="Shuffle Dataloader.")
+    parser.add_argument("--data_augmentation", action="store_true", help="Data augmentation in dataset.")
+    parser.add_argument("--fix_pg_input", action="store_true", help="Fix input to PG (i.e. dataloader returns always the same element")
+    parser.add_argument("--fix_match_module_input", action="store_true", help="Fix input to match module (i.e. no pg forward")
     args = parser.parse_args()
-    args.tag = "sr_scene_{}_batch_size_{}".format(args.start_scene_id, args.batch_size) # "sr_full_dataset"
-    args.overfit = False
-    args.num_scenes = 1 # -1
-    args.use_pretrained= "2021-02-06_08-09-18_PG_RESTART_EPOCH52"
-    args.no_pg = True
-    args.no_reference = False
+    print("Loss weights: ", args.loss_weights)
+    #args.batch_size = 6
+    #args.num_scenes = 1 # -1
+    #args.start_scene_id = 50
+    #args.num_samples = 30
+    #args.use_pretrained="pretrained/pointgroup.pth"#
+    #args.use_pretrained = "2021-02-06_08-09-18_PG_RESTART_EPOCH52"
+    #args.no_pg = False
+    #args.shuffle_dataloader = True
+    args.tag = "sr_numscenes_{}_scene_{}_numsamples{}_batch_size_{}_shuffle_{}_dataaug_{}_pgfixed_{}_weights_{}".format(args.num_scenes, args.start_scene_id, args.num_samples,
+     args.batch_size, args.shuffle_dataloader, args.data_augmentation, args.no_pg, args.loss_weights)
+    #args.tag = "sr_full_dataset_pretrained_notfixed_pg"
 
     # setting
     os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu

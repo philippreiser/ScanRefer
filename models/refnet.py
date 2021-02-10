@@ -25,7 +25,7 @@ class RefNet(nn.Module):
     def __init__(self, num_class, num_heading_bin, num_size_cluster, mean_size_arr, 
     input_feature_dim=0, num_proposal=128, vote_factor=1, sampling="vote_fps",
     use_lang_classifier=True, use_bidir=False, no_reference=False,
-    emb_size=300, hidden_size=256, batch_size=1):
+    emb_size=300, hidden_size=256, batch_size=1, fix_match_module_input=False):
         super().__init__()
 
         self.num_class = num_class
@@ -40,6 +40,7 @@ class RefNet(nn.Module):
         self.use_lang_classifier = use_lang_classifier
         self.use_bidir = use_bidir      
         self.no_reference = no_reference
+        self.fix_match_module_input = fix_match_module_input
         self.batch_size = batch_size
 
 
@@ -138,8 +139,14 @@ class RefNet(nn.Module):
         #       - EXTRA: epoch = batch['epoch']
 
         model_fn = model_fn_decorator()
-        loss, preds, _, _ = model_fn(data_dict, self.pointgroup, data_dict['epoch'], self.batch_size) # data_dict['epoch'] = 129
-
+        loss, preds, visual_dict, _ = model_fn(data_dict, self.pointgroup, data_dict['epoch'], self.batch_size) # data_dict['epoch'] = 129
+        print("semantic_loss: ", visual_dict["semantic_loss"].item())
+        print("offset_norm_loss: ", visual_dict["offset_norm_loss"].item())
+        print("offset_dir_loss: ", visual_dict["offset_dir_loss"].item())
+        print("score_loss: ", visual_dict["score_loss"].item())
+        print("--------")
+        print("Loss: ", loss.item())
+        print("------------------------------------------------")
         # forward loss 
         data_dict['pg_loss'] = loss
         data_dict['pg_end'] = time.time()
@@ -152,6 +159,19 @@ class RefNet(nn.Module):
             data_dict['proposals_offset'] = preds['proposals'][1].cuda()
             data_dict['score_feats'] = preds['score_feats'].cuda()
             data_dict['aggregated_vote_features'] = preds['score_feats'].cuda()
+            if self.fix_match_module_input:
+                if data_dict['_global_iter']==0:
+                    data_dict['0semantic_preds'] = preds['semantic_preds']
+                    data_dict['0proposals_idx'] = preds['proposals'][0]
+                    data_dict['0proposals_offset'] = preds['proposals'][1]
+                    data_dict['0score_feats'] = preds['score_feats']
+                    data_dict['0aggregated_vote_features'] = preds['score_feats']
+                else:
+                    data_dict['semantic_preds'] = data_dict['0semantic_preds'].cuda()
+                    data_dict['proposals_idx'] = data_dict['0proposals_idx'].cuda()
+                    data_dict['proposals_offset'] = data_dict['0proposals_offset'].cuda()
+                    data_dict['score_feats'] = data_dict['0score_feats'].cuda()
+                    data_dict['aggregated_vote_features'] = data_dict['0aggregated_vote_features'].cuda()
 
             #######################################
             #                                     #
