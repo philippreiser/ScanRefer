@@ -115,6 +115,7 @@ def get_scanrefer(scanrefer_train, scanrefer_val, num_scenes=-1, overfit=False, 
 def get_model(args):
     # initiate model
     input_channels = int(args.use_multiview) * 128 + int(args.use_normal) * 3 + int(args.use_color) * 3 + int(not args.no_height)
+    model_fn = model_fn_decorator()
     model = RefNet(
         num_class=DC.num_class,
         num_heading_bin=DC.num_heading_bin,
@@ -126,7 +127,8 @@ def get_model(args):
         use_bidir=args.use_bidir,
         no_reference=args.no_reference,
         batch_size=args.batch_size,
-        fix_match_module_input=args.fix_match_module_input
+        fix_match_module_input=args.fix_match_module_input,
+        model_fn=model_fn
     )    
     # trainable model
     if args.use_pretrained:
@@ -294,6 +296,10 @@ if __name__ == "__main__":
     parser.add_argument("--fix_match_module_input", action="store_true", help="Fix input to match module (i.e. no pg forward")
     args = parser.parse_args()
     print("Loss weights: ", args.loss_weights)
+    #args.gpu="1"
+    #args.num_scenes=1
+    #args.loss_weights=[0.1, 0.1, 0.8]
+    #args.batch_size=1
     #args.batch_size = 6
     #args.num_scenes = 1 # -1
     #args.start_scene_id = 50

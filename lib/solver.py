@@ -256,6 +256,11 @@ class Solver():
         self.optimizer.zero_grad()
         self._running_log["loss"].backward()
         self.optimizer.step()
+        grads = []
+        for i, parm in enumerate(self.model.match.parameters()):
+            grads.append(parm.grad.data.cpu().numpy().max())
+            self._log_writer['train'].add_histogram("match_grad"+str(i), parm.grad.data.cpu().numpy(), self._global_iter_id)
+        self._log_writer['train'].add_scalar("grads_match", np.mean(grads), self._global_iter_id)
 
     def _compute_loss(self, data_dict):
         _, data_dict = get_loss(
@@ -309,7 +314,7 @@ class Solver():
  
         for data_dict in dataloader:
             # Empty cuda cache for pointgroup
-            torch.cuda.empty_cache()
+            # torch.cuda.empty_cache()
             # move not to cuda, because pointgroup does it already
             # for key in data_dict:
             #     data_dict[key] = data_dict[key].cuda()
@@ -349,7 +354,6 @@ class Solver():
             with torch.autograd.set_detect_anomaly(True):
                 # forward
                 start = time.time()
-                self.optimizer.zero_grad()
                 data_dict["epoch"] = epoch_id
                 data_dict = self._forward(data_dict)
                 self._compute_loss(data_dict)

@@ -295,7 +295,7 @@ def compute_reference_loss(data_dict, config):
         cluster_labels_scene = torch.FloatTensor(labels[proposal_batch_ids==i]).cuda()
         cluster_preds_scene = cluster_preds[i][:cluster_labels_scene.shape[0]] # because in matching module 0s were added for missing values
         # loss = 0 is defined above
-        loss += criterion(cluster_preds_scene, cluster_labels_scene.float().clone())
+        loss += criterion(cluster_preds_scene, cluster_labels_scene.float())
         cluster_labels_scene_fill = torch.zeros(num_proposals-cluster_labels_scene.shape[0]).cuda()
         cluster_labels[i] = torch.cat([cluster_labels_scene,cluster_labels_scene_fill])
 

@@ -12,7 +12,6 @@ sys.path.append(os.path.join(os.getcwd(), "lib")) # HACK add the lib folder
 
 # new segemnation pipeline - PointGroup
 from models.pointgroup import PointGroup
-from models.pointgroup import model_fn_decorator
 from util.config import cfg
 
 from models.lang_module import LangModule
@@ -25,7 +24,8 @@ class RefNet(nn.Module):
     def __init__(self, num_class, num_heading_bin, num_size_cluster, mean_size_arr, 
     input_feature_dim=0, num_proposal=128, vote_factor=1, sampling="vote_fps",
     use_lang_classifier=True, use_bidir=False, no_reference=False,
-    emb_size=300, hidden_size=256, batch_size=1, fix_match_module_input=False):
+    emb_size=300, hidden_size=256, batch_size=1, fix_match_module_input=False,
+    model_fn=None):
         super().__init__()
 
         self.num_class = num_class
@@ -42,6 +42,7 @@ class RefNet(nn.Module):
         self.no_reference = no_reference
         self.fix_match_module_input = fix_match_module_input
         self.batch_size = batch_size
+        self.model_fn = model_fn
 
 
         # --------- PROPOSAL GENERATION ---------
@@ -138,8 +139,8 @@ class RefNet(nn.Module):
         #       - spatial_shape = batch['spatial_shape']
         #       - EXTRA: epoch = batch['epoch']
 
-        model_fn = model_fn_decorator()
-        loss, preds, visual_dict, _ = model_fn(data_dict, self.pointgroup, data_dict['epoch'], self.batch_size) # data_dict['epoch'] = 129
+        #model_fn = model_fn_decorator()
+        loss, preds, visual_dict, _ = self.model_fn(data_dict, self.pointgroup, data_dict['epoch'], self.batch_size) # data_dict['epoch'] = 129
         print("semantic_loss: ", visual_dict["semantic_loss"].item())
         print("offset_norm_loss: ", visual_dict["offset_norm_loss"].item())
         print("offset_dir_loss: ", visual_dict["offset_dir_loss"].item())
