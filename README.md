@@ -1,9 +1,11 @@
 # SparseScanRefer: Visual Grounding in RGB-D Scans with SparseConv and Dual-Set Clustering
 
+## NOTE: Currently there is a bug in the implementation and we are only able to overfit single scenes, and the loss has peaks during the training on the full datset.
 
 ## Introduction
 
 We  fuse  a  new  detection  module  into  ScanRefer by substituting the current PointNet++ and VoteNet based architecture with the novel Instance Segmentation ap-proach  of  PointGroup  which  demonstrated  new  SOTA results on ScanNet v2 and S3DIS (3D Instance Segmentation).
+
 
 ## Setup
 ```shell
