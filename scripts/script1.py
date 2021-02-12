@@ -47,8 +47,6 @@ def get_dataloader(args, scanrefer, all_scene_list, split, config, augment, data
         data_augmentation = args.data_augmentation,
         shuffle_dataloader = args.shuffle_dataloader
     )
-    # dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True)
-    # dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=False, num_workers=4) # Set shuffle=True
     dataset.trainLoader()
     dataloader = dataset.train_data_loader
     return dataset, dataloader
@@ -184,10 +182,6 @@ def get_solver(args, dataloader):
     LR_DECAY_RATE = None
     BN_DECAY_STEP = None
     BN_DECAY_RATE = None
-    #LR_DECAY_STEP = [80, 120, 160] if args.no_reference else None
-    #LR_DECAY_RATE = 0.1 if args.no_reference else None
-    #BN_DECAY_STEP = 20 if args.no_reference else None
-    #BN_DECAY_RATE = 0.5 if args.no_reference else None
 
     solver = Solver(
         model=model, 
@@ -229,31 +223,6 @@ def func(args):
     }
     solver, num_params, root = get_solver(args, dataloader)
     solver(args.epoch, args.verbose)
-    """input_channels = int(args.use_multiview) * 128 + int(args.use_normal) * 3 + int(args.use_color) * 3 + int(not args.no_height)
-    model = RefNet(
-        num_class=DC.num_class,
-        num_heading_bin=DC.num_heading_bin,
-        num_size_cluster=DC.num_size_cluster,
-        mean_size_arr=DC.mean_size_arr,
-        input_feature_dim=input_channels,
-        num_proposal=args.num_proposals,
-        use_lang_classifier=(not args.no_lang_cls),
-        use_bidir=args.use_bidir,
-        no_reference=args.no_reference
-    )
-    model.cuda()
-    # train_dataset, train_dataloader = get_dataloader(args, scanrefer, all_scene_list, "train", DC, True, ScannetReferenceDataset)
-    # sample = train_dataset[0]
-    sample = next(iter(train_dataloader))
-    # sample = train_dataset[0]
-    sample['epoch'] = 0
-    sample['lang_feat'] = sample['lang_feat'].cuda()
-    sample['lang_len'] = sample['lang_len']
-    ret = model(sample)
-    loss = get_loss(ret, args)
-    
-    ret['loss'].backward()
-    print(loss)"""
 
 
 if __name__ == "__main__":
@@ -296,21 +265,8 @@ if __name__ == "__main__":
     parser.add_argument("--fix_match_module_input", action="store_true", help="Fix input to match module (i.e. no pg forward")
     args = parser.parse_args()
     print("Loss weights: ", args.loss_weights)
-    #args.gpu="1"
-    #args.num_scenes=1
-    #args.loss_weights=[0.1, 0.1, 0.8]
-    #args.batch_size=1
-    #args.batch_size = 6
-    #args.num_scenes = 1 # -1
-    #args.start_scene_id = 50
-    #args.num_samples = 30
-    #args.use_pretrained="pretrained/pointgroup.pth"#
-    #args.use_pretrained = "2021-02-06_08-09-18_PG_RESTART_EPOCH52"
-    #args.no_pg = False
-    #args.shuffle_dataloader = True
     args.tag = "sr_numscenes_{}_scene_{}_numsamples{}_batch_size_{}_shuffle_{}_dataaug_{}_pgfixed_{}_weights_{}".format(args.num_scenes, args.start_scene_id, args.num_samples,
      args.batch_size, args.shuffle_dataloader, args.data_augmentation, args.no_pg, args.loss_weights)
-    #args.tag = "sr_full_dataset_pretrained_notfixed_pg"
 
     # setting
     os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
